@@ -58,6 +58,26 @@ private fun FieldHubApp() {
     var showWorkspaces by remember { mutableStateOf(false) }
     var showServerSettings by remember { mutableStateOf(false) }
     val selected = workspaces.firstOrNull { it.id == selectedId }
+    val uiConfig = remember(context) { runCatching { loadLocalUiConfig(context) }.getOrNull() }
+    val configuredNavigation = selected?.let { workspace ->
+        uiConfig?.navigationFor(workspace.id, workspace.id != "ravens" || demoRole != DemoRole.Player)
+            ?.mapNotNull { item -> Section.entries.firstOrNull { it.name.equals(item.screen, ignoreCase = true) }?.let { it to item.label } }
+            ?.filter { (item, _) -> item != Section.Team || (workspace.id == "ravens" && demoRole != DemoRole.Player) }
+    }.orEmpty()
+    val visibleNavigation = configuredNavigation.ifEmpty {
+        Section.entries.filter { item ->
+            when (item) {
+                Section.Team -> selected?.id == "ravens" && demoRole != DemoRole.Player
+                Section.Recruiting -> selected?.id != "ravens" || demoRole != DemoRole.Player
+                else -> true
+            }
+        }.map { it to it.title }
+    }
+    LaunchedEffect(selectedId, demoRole, visibleNavigation) {
+        if (selected != null && visibleNavigation.none { it.first == section }) {
+            section = visibleNavigation.firstOrNull()?.first ?: Section.Today
+        }
+    }
     val colors = darkColorScheme(primary = Accent, background = Background, surface = Surface, onSurface = Color.White)
     MaterialTheme(colorScheme = colors) {
         if (selected == null) {
@@ -67,13 +87,7 @@ private fun FieldHubApp() {
                 containerColor = Background,
                 bottomBar = {
                     NavigationBar(containerColor = Surface) {
-                        Section.entries.filter { item ->
-                            when (item) {
-                                Section.Team -> selected.id == "ravens" && demoRole != DemoRole.Player
-                                Section.Recruiting -> selected.id != "ravens" || demoRole != DemoRole.Player
-                                else -> true
-                            }
-                        }.forEach { item ->
+                        visibleNavigation.forEach { (item, label) ->
                             NavigationBarItem(
                                 selected = section == item,
                                 onClick = { section = item },
@@ -87,7 +101,7 @@ private fun FieldHubApp() {
                                         Section.Profile -> Icon(Icons.Default.Person, contentDescription = null)
                                     }
                                 },
-                                label = { Text(item.title) }
+                                label = { Text(label) }
                             )
                         }
                     }
