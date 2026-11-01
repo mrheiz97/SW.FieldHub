@@ -11,10 +11,14 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.UUID
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import java.text.DateFormat
+import java.util.Date
 
 /** Preview-only renderer. Does not write contact records or imply consent. */
 @Composable
-internal fun DynamicFormPreview(workspaceId: String, onDismiss: () -> Unit) {
+internal fun DynamicFormPreview(workspaceId: String, onDismiss: () -> Unit, existing: FormSubmission? = null) {
     val context = LocalContext.current
     val schema = remember(context) {
         runCatching {
@@ -22,7 +26,18 @@ internal fun DynamicFormPreview(workspaceId: String, onDismiss: () -> Unit) {
             parseFormSchema(json)
         }.getOrNull()
     }
-    val values = remember(workspaceId) { mutableStateMapOf<String, String>() }
+    val values = remember(workspaceId, existing?.id) {
+        mutableStateMapOf<String, String>().apply {
+            existing?.let { submission ->
+                runCatching {
+                    val payload = JSONObject(submission.payloadJson)
+                    schema?.fields?.forEach { field ->
+                        if (payload.has(field.id)) put(field.id, payload.optString(field.id))
+                    }
+                }
+            }
+        }
+    }
     val errors = remember { mutableStateMapOf<String, String>() }
     val scope = rememberCoroutineScope()
     val dao = remember(context) { FieldHubDatabase.get(context).dao() }
@@ -88,11 +103,11 @@ internal fun DynamicFormPreview(workspaceId: String, onDismiss: () -> Unit) {
                 scope.launch {
                     try {
                         dao.saveFormSubmission(FormSubmission(
-                            id = UUID.randomUUID().toString(),
+                            id = existing?.id ?: UUID.randomUUID().toString(),
                             workspaceId = workspaceId,
                             formId = form.id,
                             payloadJson = payload.toString(),
-                            createdAt = System.currentTimeMillis()
+                            createdAt = existing?.createdAt ?: System.currentTimeMillis()
                         ))
                         onDismiss()
                     } catch (error: Exception) {
@@ -101,8 +116,69 @@ internal fun DynamicFormPreview(workspaceId: String, onDismiss: () -> Unit) {
                         saving = false
                     }
                 }
-            }) { Text(if (saving) "Speichert…" else "Lokal speichern") }
+            }) { Text(if (saving) "Speichert…" else if (existing != null) "Änderungen speichern" else "Lokal speichern") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } }
     )
+}
+
+/** Workspace-scoped browser for generic JSON form submissions. */
+@Composable
+internal fun DynamicFormEntries(workspaceId: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val dao = remember(context) { FieldHubDatabase.get(context).dao() }
+    val schema = remember(context) {
+        runCatching {
+            parseFormSchema(context.assets.open("fieldhub_form_example_v1.json").bufferedReader().use { it.readText() })
+        }.getOrNull()
+    }
+    val submissions by remember(dao, workspaceId, schema?.id) {
+        dao.formSubmissions(workspaceId, schema?.id ?: "unknown")
+    }.collectAsState(initial = emptyList())
+    var query by remember(workspaceId) { mutableStateOf("") }
+    var selected by remember(workspaceId) { mutableStateOf<FormSubmission?>(null) }
+    val filtered = remember(submissions, query) {
+        submissions.filter { submission ->
+            if (query.isBlank()) true
+            else runCatching {
+                val payload = JSONObject(submission.payloadJson)
+                payload.keys().asSequence().any { key ->
+                    payload.optString(key).contains(query, ignoreCase = true)
+                }
+            }.getOrDefault(false)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Formulareinträge") },
+        text = {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = query, onValueChange = { query = it },
+                    label = { Text("Einträge durchsuchen") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth()
+                )
+                Text("${filtered.size} von ${submissions.size} Einträgen", style = MaterialTheme.typography.bodySmall)
+                LazyColumn(Modifier.heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(filtered, key = { it.id }) { entry ->
+                        val payload = remember(entry.payloadJson) {
+                            runCatching { JSONObject(entry.payloadJson) }.getOrNull()
+                        }
+                        Card(onClick = { selected = entry }, modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(payload?.optString("name")?.takeIf { it.isNotBlank() } ?: "Formulareintrag", style = MaterialTheme.typography.titleMedium)
+                                Text(DateFormat.getDateTimeInstance().format(Date(entry.createdAt)), style = MaterialTheme.typography.bodySmall)
+                                Text("Öffnen und bearbeiten", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+                if (filtered.isEmpty()) Text("Keine passenden Einträge.")
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Schließen") } }
+    )
+    selected?.let { entry ->
+        DynamicFormPreview(workspaceId = workspaceId, existing = entry, onDismiss = { selected = null })
+    }
 }
