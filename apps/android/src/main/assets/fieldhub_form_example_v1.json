@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "form": {
+    "id": "demo_contact",
+    "title": "Dynamisches Kontaktformular (Vorschau)",
+    "fields": [
+      {
+        "id": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true
+      },
+      {
+        "id": "email",
+        "label": "E-Mail",
+        "type": "email"
+      },
+      {
+        "id": "phone",
+        "label": "Telefon",
+        "type": "phone"
+      },
+      {
+        "id": "notes",
+        "label": "Notizen",
+        "type": "multiline"
+      },
+      {
+        "id": "status",
+        "label": "Status",
+        "type": "select",
+        "options": [
+          "Neu",
+          "Kontaktiert",
+          "Interessiert",
+          "Probetraining"
+        ]
+      },
+      {
+        "id": "consent",
+        "label": "Einwilligung liegt vor",
+        "type": "checkbox"
+      }
+    ]
+  }
+}
