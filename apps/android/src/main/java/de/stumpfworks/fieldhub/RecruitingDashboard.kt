@@ -17,42 +17,56 @@ private val phases = listOf("Neu", "Kontaktiert", "Interessiert", "Probetraining
 @Composable
 internal fun RecruitingDashboard(
     contacts: List<RecruitingContact>,
+    workspaceId: String,
     onFilterStatus: (String) -> Unit,
     onOpenContact: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val dashboard = remember(context, workspaceId) { runCatching { loadLocalUiConfig(context).dashboardFor(workspaceId) }.getOrNull() }
     val dao = remember(context) { FieldHubDatabase.get(context).dao() }
     val followups by remember(dao) { dao.allFollowups() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val contactIds = remember(contacts) { contacts.map { it.id }.toSet() }
     val now = System.currentTimeMillis()
     val overdue = followups.filter { !it.done && it.contactId in contactIds && it.dueAt < now }
-    val metrics = listOf(
-        Triple("Kontakte", contacts.size, "Alle"),
-        Triple("Interessiert", contacts.count { it.status == "Interessiert" }, "Interessiert"),
-        Triple("Probetraining", contacts.count { it.status == "Probetraining" }, "Probetraining"),
-        Triple("Fällige Rückrufe", overdue.size, "")
+    val defaultMetrics = listOf(
+        UiMetric("total", "Kontakte", "contacts.total", "filter.all"),
+        UiMetric("interested", "Interessiert", "contacts.interested", "filter.interested"),
+        UiMetric("trial", "Probetraining", "contacts.trial", "filter.trial"),
+        UiMetric("due", "Fällige Rückrufe", "followups.due", "open.due")
     )
+    val metrics = dashboard?.metrics ?: defaultMetrics
+    fun valueFor(source: String): Int = when (source) {
+        "contacts.total" -> contacts.size
+        "contacts.interested" -> contacts.count { it.status == "Interessiert" }
+        "contacts.trial" -> contacts.count { it.status == "Probetraining" }
+        "followups.due" -> overdue.size
+        else -> 0
+    }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Überblick", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(dashboard?.title ?: "Überblick", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val columns = if (maxWidth >= 650.dp) 4 else 2
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 metrics.chunked(columns).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { (label, value, filter) ->
+                        row.forEach { metric ->
                             Card(
                                 onClick = {
-                                    if (filter.isNotEmpty()) onFilterStatus(filter)
-                                    else overdue.minByOrNull { it.dueAt }?.let { onOpenContact(it.contactId) }
+                                    when (metric.action) {
+                                        "filter.all" -> onFilterStatus("Alle")
+                                        "filter.interested" -> onFilterStatus("Interessiert")
+                                        "filter.trial" -> onFilterStatus("Probetraining")
+                                        "open.due" -> overdue.minByOrNull { it.dueAt }?.let { onOpenContact(it.contactId) }
+                                    }
                                 },
                                 modifier = Modifier.weight(1f),
                                 colors = CardDefaults.cardColors(containerColor = dashboardPanel),
                                 shape = RoundedCornerShape(16.dp)
                             ) {
                                 Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                                    Text(value.toString(), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                                    Text(label, color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
+                                    Text(valueFor(metric.dataSource).toString(), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    Text(metric.label, color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         }
@@ -60,6 +74,7 @@ internal fun RecruitingDashboard(
                 }
             }
         }
+        if (dashboard?.showPhases != false) {
         Text("Recruiting-Phasen", style = MaterialTheme.typography.titleMedium, color = Color.White)
         phases.forEach { phase ->
             val count = contacts.count { it.status == phase }
@@ -73,6 +88,7 @@ internal fun RecruitingDashboard(
                 )
                 Text(count.toString(), color = Color.White, style = MaterialTheme.typography.bodySmall)
             }
+        }
         }
         Text("Kennzahlen aus lokalen Kontakten und Wiedervorlagen", style = MaterialTheme.typography.labelSmall, color = Color.LightGray)
     }
