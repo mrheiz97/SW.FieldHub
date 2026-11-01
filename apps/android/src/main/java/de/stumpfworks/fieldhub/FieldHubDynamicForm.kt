@@ -13,16 +13,17 @@ import org.json.JSONObject
 import java.util.UUID
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.font.FontWeight
 import java.text.DateFormat
 import java.util.Date
 
 /** Preview-only renderer. Does not write contact records or imply consent. */
 @Composable
-internal fun DynamicFormPreview(workspaceId: String, onDismiss: () -> Unit, existing: FormSubmission? = null) {
+internal fun DynamicFormPreview(workspaceId: String, onDismiss: () -> Unit, existing: FormSubmission? = null, formId: String = "demo_contact") {
     val context = LocalContext.current
-    val schema = remember(context) {
+    val schema = remember(context, formId) {
         runCatching {
-            val json = context.assets.open("fieldhub_form_example_v1.json").bufferedReader().use { it.readText() }
+            val json = context.assets.open(if (formId == "demo_contact") "fieldhub_form_example_v1.json" else "fieldhub_form_${formId}_v1.json").bufferedReader().use { it.readText() }
             parseFormSchema(json)
         }.getOrNull()
     }
@@ -124,7 +125,7 @@ internal fun DynamicFormPreview(workspaceId: String, onDismiss: () -> Unit, exis
 
 /** Workspace-scoped browser for generic JSON form submissions. */
 @Composable
-internal fun DynamicFormEntries(workspaceId: String, onDismiss: () -> Unit) {
+internal fun DynamicFormEntries(workspaceId: String, onDismiss: () -> Unit, formId: String = "demo_contact") {
     val context = LocalContext.current
     val dao = remember(context) { FieldHubDatabase.get(context).dao() }
     val schema = remember(context) {
@@ -179,6 +180,47 @@ internal fun DynamicFormEntries(workspaceId: String, onDismiss: () -> Unit) {
         confirmButton = { TextButton(onClick = onDismiss) { Text("Schließen") } }
     )
     selected?.let { entry ->
-        DynamicFormPreview(workspaceId = workspaceId, existing = entry, onDismiss = { selected = null })
+        DynamicFormPreview(workspaceId = workspaceId, existing = entry, formId = formId, onDismiss = { selected = null })
+    }
+}
+
+/** Independent form catalog: UI config determines which allowlisted form IDs appear. */
+@Composable
+internal fun FormsWorkspaceScreen(workspaceId: String, formIds: List<String>) {
+    val context = LocalContext.current
+    var creating by remember(workspaceId) { mutableStateOf<String?>(null) }
+    var browsing by remember(workspaceId) { mutableStateOf<String?>(null) }
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("Formulare", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Formulare dieses Workspaces · Daten bleiben lokal auf diesem Gerät")
+        if (formIds.isEmpty()) Text("Für diesen Workspace sind noch keine Formulare konfiguriert.")
+        formIds.forEach { formId ->
+            val schema = remember(context, formId) {
+                runCatching {
+                    val filename = if (formId == "demo_contact") "fieldhub_form_example_v1.json" else "fieldhub_form_${formId}_v1.json"
+                    parseFormSchema(context.assets.open(filename).bufferedReader().use { it.readText() })
+                }.getOrNull()?.takeIf { it.id == formId }
+            }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(schema?.title ?: formId, style = MaterialTheme.typography.titleMedium)
+                    if (schema == null) {
+                        Text("Formular-Konfiguration fehlt oder ist ungültig.")
+                    } else {
+                        Text("${schema.fields.size} Felder")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { creating = formId }) { Text("Ausfüllen") }
+                            TextButton(onClick = { browsing = formId }) { Text("Einträge") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    creating?.let { id ->
+        DynamicFormPreview(workspaceId = workspaceId, formId = id, onDismiss = { creating = null })
+    }
+    browsing?.let { id ->
+        DynamicFormEntries(workspaceId = workspaceId, formId = id, onDismiss = { browsing = null })
     }
 }
