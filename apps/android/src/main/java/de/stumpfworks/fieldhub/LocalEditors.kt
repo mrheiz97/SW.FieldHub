@@ -1,6 +1,12 @@
 package de.stumpfworks.fieldhub
 
 import androidx.compose.foundation.layout.*
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -40,6 +46,13 @@ internal fun LocalEventsScreen(workspaceId: String, canManage: Boolean) {
                         Text(event.title, color = Color.White, style = MaterialTheme.typography.titleMedium)
                         Text(event.scheduleLabel, color = muted)
                         Text(event.location, color = muted)
+                        if (workspaceId == "ravens") {
+                            Text("Rückmeldung: " + when(event.attendance) { "yes" -> "Dabei"; "no" -> "Nicht dabei"; else -> "Offen" }, color = muted)
+                            Row {
+                                TextButton(onClick = { scope.launch { dao.setEventAttendance(event.id, workspaceId, "yes") } }) { Text("Dabei") }
+                                TextButton(onClick = { scope.launch { dao.setEventAttendance(event.id, workspaceId, "no") } }) { Text("Absagen") }
+                            }
+                        }
                     }
                 }
             }
@@ -50,6 +63,21 @@ internal fun LocalEventsScreen(workspaceId: String, canManage: Boolean) {
         val current = editing
         var title by remember(current?.id, creating) { mutableStateOf(current?.title.orEmpty()) }
         var whenText by remember(current?.id, creating) { mutableStateOf(current?.scheduleLabel.orEmpty()) }
+        var startAt by remember(current?.id, creating) { mutableLongStateOf(current?.startAt ?: 0L) }
+        val formatter = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.GERMANY) }
+        fun openDatePicker() {
+            val calendar = Calendar.getInstance().apply { if (startAt > 0L) timeInMillis = startAt }
+            DatePickerDialog(context, { _, year, month, day ->
+                calendar.set(year, month, day)
+                TimePickerDialog(context, { _, hour, minute ->
+                    calendar.set(Calendar.HOUR_OF_DAY, hour)
+                    calendar.set(Calendar.MINUTE, minute)
+                    calendar.set(Calendar.SECOND, 0)
+                    startAt = calendar.timeInMillis
+                    whenText = formatter.format(Date(startAt))
+                }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true).show()
+            }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+        }
         var location by remember(current?.id, creating) { mutableStateOf(current?.location.orEmpty()) }
         var description by remember(current?.id, creating) { mutableStateOf(current?.description.orEmpty()) }
         var type by remember(current?.id, creating) { mutableStateOf(current?.type ?: "Training") }
@@ -59,7 +87,8 @@ internal fun LocalEventsScreen(workspaceId: String, canManage: Boolean) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(title, { title = it }, label = { Text("Titel") }, singleLine = true, readOnly = !canManage)
-                    OutlinedTextField(whenText, { whenText = it }, label = { Text("Datum / Uhrzeit") }, singleLine = true, readOnly = !canManage)
+                    OutlinedTextField(whenText, { whenText = it; startAt = 0L }, label = { Text("Datum / Uhrzeit") }, singleLine = true, readOnly = true)
+                    if (canManage) TextButton(onClick = { openDatePicker() }) { Text("Datum und Uhrzeit auswählen") }
                     OutlinedTextField(location, { location = it }, label = { Text("Ort") }, singleLine = true, readOnly = !canManage)
                     OutlinedTextField(type, { type = it }, label = { Text("Art") }, singleLine = true, readOnly = !canManage)
                     OutlinedTextField(description, { description = it }, label = { Text("Beschreibung") }, readOnly = !canManage)
@@ -70,10 +99,10 @@ internal fun LocalEventsScreen(workspaceId: String, canManage: Boolean) {
             },
             confirmButton = {
                 if (canManage) TextButton(
-                    enabled = title.isNotBlank() && whenText.isNotBlank(),
+                    enabled = title.isNotBlank() && startAt > 0L,
                     onClick = {
                         scope.launch {
-                            dao.saveEvent(LocalEvent(current?.id ?: UUID.randomUUID().toString(), workspaceId, title.trim(), whenText.trim(), location.trim(), description.trim(), type.trim()))
+                            dao.saveEvent(LocalEvent(current?.id ?: UUID.randomUUID().toString(), workspaceId, title.trim(), whenText.trim(), location.trim(), description.trim(), type.trim(), startAt, current?.attendance ?: "unknown"))
                         }
                         creating = false; editing = null
                     }
