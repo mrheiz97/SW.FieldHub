@@ -1,0 +1,362 @@
+openapi: 3.0.3
+info:
+  title: StumpfWorks FieldHub API
+  version: 0.17.0-draft
+  description: Draft API contract only; no running service is implied.
+servers:
+  - url: https://api.fieldhub.stumpfworks.de/v1
+security:
+  - bearerAuth: []
+paths:
+  /bootstrap:
+    get:
+      operationId: getBootstrap
+      responses:
+        '200':
+          description: User-visible workspace configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bootstrap'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /workspaces/{workspaceId}/forms:
+    get:
+      operationId: listForms
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Published forms visible to this user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FormSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /workspaces/{workspaceId}/forms/{formId}:
+    get:
+      operationId: getForm
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/FormId'
+      responses:
+        '200':
+          description: Published declarative form
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FormDefinition'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /workspaces/{workspaceId}/forms/{formId}/submissions:
+    get:
+      operationId: listSubmissions
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/FormId'
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+      responses:
+        '200':
+          description: Paginated submissions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Submission'
+                  nextCursor:
+                    type: string
+                    nullable: true
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      operationId: createSubmission
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/FormId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionWrite'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /workspaces/{workspaceId}/forms/{formId}/submissions/{submissionId}:
+    patch:
+      operationId: updateSubmission
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/FormId'
+        - name: submissionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionWrite'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /workspaces/{workspaceId}/sync:
+    post:
+      operationId: syncWorkspace
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [changes]
+              properties:
+                cursor:
+                  type: string
+                changes:
+                  type: array
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [changeId, resourceType, operation, payload]
+                    properties:
+                      changeId:
+                        type: string
+                      resourceType:
+                        type: string
+                        enum: [formSubmission]
+                      operation:
+                        type: string
+                        enum: [create, update]
+                      baseRevision:
+                        type: string
+                      payload:
+                        type: object
+                        additionalProperties: true
+      responses:
+        '200':
+          description: Individual change acknowledgements and new cursor
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  nextCursor:
+                    type: string
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required: [changeId, status]
+                      properties:
+                        changeId:
+                          type: string
+                        status:
+                          type: string
+                          enum: [accepted, conflict, rejected]
+                        serverRevision:
+                          type: string
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema:
+        type: string
+    FormId:
+      name: formId
+      in: path
+      required: true
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Authentication required
+    Forbidden:
+      description: Workspace permission denied
+    NotFound:
+      description: Resource not found or not visible
+    Conflict:
+      description: Concurrent modification or duplicate operation conflict
+  schemas:
+    Bootstrap:
+      type: object
+      required: [schemaVersion, user, workspaces]
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [1]
+        user:
+          type: object
+          required: [id, displayName]
+          properties:
+            id:
+              type: string
+            displayName:
+              type: string
+        workspaces:
+          type: array
+          items:
+            type: object
+            required: [id, name, permissions, navigation]
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              permissions:
+                type: array
+                items:
+                  type: string
+              navigation:
+                type: array
+                items:
+                  type: object
+                  required: [screen, label]
+                  properties:
+                    screen:
+                      type: string
+                    label:
+                      type: string
+    FormSummary:
+      type: object
+      required: [id, title, version]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+    FormDefinition:
+      type: object
+      required: [schemaVersion, form]
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [1]
+        form:
+          type: object
+          required: [id, title, version, fields]
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            version:
+              type: integer
+              minimum: 1
+            fields:
+              type: array
+              maxItems: 30
+              items:
+                type: object
+                required: [id, label, type]
+                properties:
+                  id:
+                    type: string
+                  label:
+                    type: string
+                  type:
+                    type: string
+                    enum: [text, email, phone, multiline, select, checkbox]
+                  required:
+                    type: boolean
+                  options:
+                    type: array
+                    items:
+                      type: string
+    SubmissionWrite:
+      type: object
+      required: [formVersion, values]
+      properties:
+        formVersion:
+          type: integer
+          minimum: 1
+        values:
+          type: object
+          additionalProperties:
+            type: string
+    Submission:
+      allOf:
+        - $ref: '#/components/schemas/SubmissionWrite'
+        - type: object
+          required: [id, workspaceId, formId, revision, createdAt, updatedAt]
+          properties:
+            id:
+              type: string
+            workspaceId:
+              type: string
+            formId:
+              type: string
+            revision:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
