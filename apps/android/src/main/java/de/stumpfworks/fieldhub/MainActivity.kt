@@ -56,11 +56,12 @@ private fun FieldHubApp() {
     var section by remember { mutableStateOf(Section.Today) }
     var demoRole by remember { mutableStateOf(DemoRole.Player) }
     var showWorkspaces by remember { mutableStateOf(false) }
+    var showServerSettings by remember { mutableStateOf(false) }
     val selected = workspaces.firstOrNull { it.id == selectedId }
     val colors = darkColorScheme(primary = Accent, background = Background, surface = Surface, onSurface = Color.White)
     MaterialTheme(colorScheme = colors) {
         if (selected == null) {
-            WorkspacePicker { selectWorkspace(it.id); section = Section.Today }
+            WorkspacePicker(onSelect = { selectWorkspace(it.id); section = Section.Today }, onSettings = { showServerSettings = true })
         } else {
             Scaffold(
                 containerColor = Background,
@@ -94,12 +95,17 @@ private fun FieldHubApp() {
             ) { padding ->
                 Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
                     Spacer(Modifier.height(20.dp))
-                    TextButton(onClick = { showWorkspaces = true }) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { showWorkspaces = true }, modifier = Modifier.weight(1f)) {
                         Icon(Icons.Default.Business, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text(selected.name)
                         Spacer(Modifier.width(4.dp))
                         Icon(Icons.Default.ArrowDropDown, contentDescription = "Workspace wechseln")
+                    }
+                    IconButton(onClick = { showServerSettings = true }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Servereinstellungen")
+                    }
                     }
                     Spacer(Modifier.height(16.dp))
                     when (section) {
@@ -133,14 +139,18 @@ private fun FieldHubApp() {
                 )
             }
         }
+        if (showServerSettings) ServerSettingsDialog(onDismiss = { showServerSettings = false })
     }
 }
 
 @Composable
-private fun WorkspacePicker(onSelect: (Workspace) -> Unit) {
+private fun WorkspacePicker(onSelect: (Workspace) -> Unit, onSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Background).padding(20.dp)) {
         Spacer(Modifier.height(24.dp))
-        Text("FieldHub", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.White)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("FieldHub", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.White)
+            IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, contentDescription = "Servereinstellungen") }
+        }
         Spacer(Modifier.height(8.dp))
         Text("Wähle deinen Workspace", color = Color.LightGray)
         Spacer(Modifier.height(28.dp))
