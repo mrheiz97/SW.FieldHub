@@ -32,6 +32,11 @@
           "screen": "tasks"
         },
         {
+          "id": "forms",
+          "label": "Formulare",
+          "screen": "forms"
+        },
+        {
           "id": "profile",
           "label": "Profil",
           "screen": "profile"
@@ -66,7 +71,10 @@
             "action": "open.due"
           }
         ]
-      }
+      },
+      "forms": [
+        "demo_contact"
+      ]
     },
     {
       "id": "stumpfworks",
@@ -92,6 +100,11 @@
           "screen": "tasks"
         },
         {
+          "id": "forms",
+          "label": "Formulare",
+          "screen": "forms"
+        },
+        {
           "id": "profile",
           "label": "Profil",
           "screen": "profile"
@@ -126,7 +139,10 @@
             "action": "open.due"
           }
         ]
-      }
+      },
+      "forms": [
+        "demo_contact"
+      ]
     },
     {
       "id": "sales",
@@ -152,6 +168,11 @@
           "screen": "tasks"
         },
         {
+          "id": "forms",
+          "label": "Formulare",
+          "screen": "forms"
+        },
+        {
           "id": "profile",
           "label": "Profil",
           "screen": "profile"
@@ -186,7 +207,10 @@
             "action": "open.due"
           }
         ]
-      }
+      },
+      "forms": [
+        "demo_contact"
+      ]
     }
   ]
 }
