@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "workspaces": [
+    {
+      "id": "ravens",
+      "navigation": [
+        {
+          "id": "today",
+          "label": "Heute",
+          "screen": "today"
+        },
+        {
+          "id": "events",
+          "label": "Termine",
+          "screen": "events"
+        },
+        {
+          "id": "team",
+          "label": "Team",
+          "screen": "team",
+          "minRole": "coach"
+        },
+        {
+          "id": "recruiting",
+          "label": "Kontakte",
+          "screen": "recruiting",
+          "minRole": "coach"
+        },
+        {
+          "id": "tasks",
+          "label": "Aufgaben",
+          "screen": "tasks"
+        },
+        {
+          "id": "profile",
+          "label": "Profil",
+          "screen": "profile"
+        }
+      ]
+    },
+    {
+      "id": "stumpfworks",
+      "navigation": [
+        {
+          "id": "today",
+          "label": "Heute",
+          "screen": "today"
+        },
+        {
+          "id": "events",
+          "label": "Termine",
+          "screen": "events"
+        },
+        {
+          "id": "recruiting",
+          "label": "Kontakte",
+          "screen": "recruiting"
+        },
+        {
+          "id": "tasks",
+          "label": "Aufgaben",
+          "screen": "tasks"
+        },
+        {
+          "id": "profile",
+          "label": "Profil",
+          "screen": "profile"
+        }
+      ]
+    },
+    {
+      "id": "sales",
+      "navigation": [
+        {
+          "id": "today",
+          "label": "Heute",
+          "screen": "today"
+        },
+        {
+          "id": "events",
+          "label": "Termine",
+          "screen": "events"
+        },
+        {
+          "id": "recruiting",
+          "label": "Kontakte",
+          "screen": "recruiting"
+        },
+        {
+          "id": "tasks",
+          "label": "Aufgaben",
+          "screen": "tasks"
+        },
+        {
+          "id": "profile",
+          "label": "Profil",
+          "screen": "profile"
+        }
+      ]
+    }
+  ]
+}
