@@ -20,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 
 private val Background = Color(0xFF10131C)
 private val Surface = Color(0xFF1C2230)
@@ -32,7 +31,7 @@ private val workspaces = listOf(
     Workspace("stumpfworks", "stumpfWORKS", "Administrator", "Was steht heute an?", "Aufgaben öffnen"),
     Workspace("sales", "Field Sales Demo", "Recruiter", "Neue Kontakte erfassen", "Kontakt hinzufügen")
 )
-private enum class Section(val title: String) { Today("Heute"), Tasks("Aufgaben"), Profile("Profil") }
+private enum class Section(val title: String) { Today("Heute"), Events("Termine"), Tasks("Aufgaben"), Profile("Profil") }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,6 +70,7 @@ private fun FieldHubApp() {
                                 icon = {
                                     when (item) {
                                         Section.Today -> Icon(Icons.Default.Home, contentDescription = null)
+                                        Section.Events -> Icon(Icons.Default.Event, contentDescription = null)
                                         Section.Tasks -> Icon(Icons.Default.CheckCircle, contentDescription = null)
                                         Section.Profile -> Icon(Icons.Default.Person, contentDescription = null)
                                     }
@@ -93,6 +93,7 @@ private fun FieldHubApp() {
                     Spacer(Modifier.height(16.dp))
                     when (section) {
                         Section.Today -> TodayScreen(selected)
+                        Section.Events -> EventListScreen(selected.id)
                         Section.Tasks -> PlaceholderScreen("Deine Aufgaben", "Hier erscheinen später die Aufgaben dieses Workspaces.")
                         Section.Profile -> PlaceholderScreen("Dein Profil", "Deine Mitgliedschaften und Einstellungen folgen.")
                     }
@@ -162,7 +163,18 @@ private fun TodayScreen(workspace: Workspace) {
     Text("Deine persönliche Übersicht", color = Color.LightGray)
     Spacer(Modifier.height(28.dp))
     if (workspace.id == "ravens") {
-        TrainingCard()
+        DemoEventRepository.forWorkspace(workspace.id).firstOrNull { it.type == "Training" }?.let { event ->
+            Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(24.dp)) {
+                Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                    Text("Nächstes Training", color = Accent, style = MaterialTheme.typography.labelMedium)
+                    Spacer(Modifier.height(10.dp))
+                    Text(event.title, color = Color.White, style = MaterialTheme.typography.titleLarge)
+                    Text(event.scheduleLabel, color = Color.LightGray)
+                    Spacer(Modifier.height(16.dp))
+                    EventAttendanceControls(event)
+                }
+            }
+        }
     } else {
         Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(24.dp)) {
             Column(Modifier.fillMaxWidth().padding(20.dp)) {
@@ -185,68 +197,6 @@ private fun TodayScreen(workspace: Workspace) {
             text = { Text("Dieser Ablauf wird im nächsten Entwicklungsschritt implementiert.") },
             confirmButton = { TextButton(onClick = { actionOpened = false }) { Text("Verstanden") } }
         )
-    }
-}
-
-private enum class Attendance { Unknown, Yes, No }
-
-@Composable
-private fun TrainingCard() {
-    val context = LocalContext.current
-    val preferences = remember(context) {
-        context.getSharedPreferences("fieldhub_demo_training", android.content.Context.MODE_PRIVATE)
-    }
-    var attendance by remember {
-        mutableStateOf(
-            when (preferences.getString("ravens_training_demo", "unknown")) {
-                "yes" -> Attendance.Yes
-                "no" -> Attendance.No
-                else -> Attendance.Unknown
-            }
-        )
-    }
-    fun setAttendance(value: Attendance) {
-        attendance = value
-        preferences.edit().putString("ravens_training_demo", when (value) {
-            Attendance.Yes -> "yes"
-            Attendance.No -> "no"
-            Attendance.Unknown -> "unknown"
-        }).apply()
-    }
-    Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(24.dp)) {
-        Column(Modifier.fillMaxWidth().padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Event, contentDescription = null, tint = Accent)
-                Spacer(Modifier.width(10.dp))
-                Text("Nächstes Training", style = MaterialTheme.typography.titleMedium, color = Color.White)
-            }
-            Spacer(Modifier.height(14.dp))
-            Text("Ravens Teamtraining", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = Color.White)
-            Spacer(Modifier.height(8.dp))
-            Text("Beispieltermin · Dienstag, 18:30 Uhr", color = Color.LightGray)
-            Spacer(Modifier.height(14.dp))
-            val status = when (attendance) {
-                Attendance.Yes -> "Du hast zugesagt"
-                Attendance.No -> "Du hast abgesagt"
-                Attendance.Unknown -> "Deine Teilnahme ist noch offen"
-            }
-            Text(status, color = if (attendance == Attendance.Yes) Accent else Color.White)
-            Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(
-                    onClick = { setAttendance(Attendance.Yes) },
-                    enabled = attendance != Attendance.Yes,
-                    modifier = Modifier.weight(1f)
-                ) { Text("Zusagen") }
-                OutlinedButton(
-                    onClick = { setAttendance(Attendance.No) },
-                    enabled = attendance != Attendance.No,
-                    modifier = Modifier.weight(1f)
-                ) { Text("Absagen") }
-            }
-            Spacer(Modifier.height(12.dp))
-            Text("Nur lokale Demo: keine echte Anmeldung oder Übermittlung an Trainer.", color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
-        }
     }
 }
 
