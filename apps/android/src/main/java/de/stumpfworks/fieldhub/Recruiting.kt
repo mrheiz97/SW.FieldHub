@@ -64,6 +64,8 @@ internal fun RecruitingScreen(workspaceId: String) {
             }
         }
         Spacer(Modifier.height(12.dp))
+        RecruitingFollowupSummary(contacts, onOpenContact = { detailId = it })
+        Spacer(Modifier.height(12.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(filtered, key = { it.id }) { contact ->
                 Card(onClick = { detailId = contact.id }, colors = CardDefaults.cardColors(containerColor = recruitingPanel)) {
@@ -190,7 +192,7 @@ internal fun RecruitingScreen(workspaceId: String) {
                                 Text("Diesen Kontakt dauerhaft löschen?", color = Color(0xFFFFCC80))
                                 Row {
                                     TextButton(onClick = {
-                                        scope.launch { dao.deleteActivities(original.id); dao.deleteContact(original) }
+                                        scope.launch { dao.deleteFollowups(original.id); dao.deleteActivities(original.id); dao.deleteContact(original) }
                                         editing = null
                                     }) { Text("Endgültig löschen") }
                                     TextButton(onClick = { confirmDelete = false }) { Text("Behalten") }
