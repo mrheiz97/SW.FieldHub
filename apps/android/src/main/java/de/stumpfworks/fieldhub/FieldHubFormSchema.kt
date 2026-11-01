@@ -44,3 +44,23 @@ internal fun parseFormSchema(json: String): UiFormSchema {
     require(fields.map { it.id }.distinct().size == fields.size) { "Duplicate field ID" }
     return UiFormSchema(id, title, fields)
 }
+
+/** Returns field IDs with invalid values; used before every local save. */
+internal fun validateFormValues(schema: UiFormSchema, values: Map<String, String>): Map<String, String> {
+    val errors = linkedMapOf<String, String>()
+    schema.fields.forEach { field ->
+        val value = values[field.id].orEmpty().trim()
+        val error = when {
+            value.length > 4000 -> "Eingabe ist zu lang"
+            field.required && (value.isBlank() || (field.type == "checkbox" && value != "true")) -> "Pflichtfeld"
+            value.isBlank() -> null
+            field.type == "email" && !android.util.Patterns.EMAIL_ADDRESS.matcher(value).matches() -> "Ungültige E-Mail-Adresse"
+            field.type == "phone" && !value.matches(Regex("[+0-9() /-]{3,40}")) -> "Ungültige Telefonnummer"
+            field.type == "select" && value !in field.options -> "Ungültige Auswahl"
+            field.type == "checkbox" && value != "true" && value != "false" -> "Ungültiger Wert"
+            else -> null
+        }
+        if (error != null) errors[field.id] = error
+    }
+    return errors
+}
