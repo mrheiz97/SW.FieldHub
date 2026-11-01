@@ -76,6 +76,7 @@ internal fun RecruitingDetailScreen(contact: RecruitingContact, onBack: () -> Un
                     }
                 }
             }
+            item { FollowupEditor(contact.id) }
             item {
                 Text("Kontakthistorie", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(8.dp))
