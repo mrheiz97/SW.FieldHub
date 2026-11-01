@@ -62,7 +62,10 @@ private fun FieldHubApp() {
     val configuredNavigation = selected?.let { workspace ->
         uiConfig?.navigationFor(workspace.id, workspace.id != "ravens" || demoRole != DemoRole.Player)
             ?.mapNotNull { item -> Section.entries.firstOrNull { it.name.equals(item.screen, ignoreCase = true) }?.let { it to item.label } }
-            ?.filter { (item, _) -> item != Section.Team || (workspace.id == "ravens" && demoRole != DemoRole.Player) }
+            ?.filter { (item, _) ->
+                (item != Section.Team || (workspace.id == "ravens" && demoRole != DemoRole.Player)) &&
+                (item != Section.Recruiting || workspace.id != "ravens" || demoRole != DemoRole.Player)
+            }
     }.orEmpty()
     val visibleNavigation = configuredNavigation.ifEmpty {
         Section.entries.filter { item ->
