@@ -97,6 +97,7 @@ internal fun RecruitingScreen(workspaceId: String) {
                 }
             }
         if (filtered.isEmpty()) item { Text("Keine Kontakte gefunden. Prüfe Suche und Statusfilter.", color = Color.LightGray) }
+        }
     }
 
     if (formPreview) DynamicFormPreview(onDismiss = { formPreview = false })
