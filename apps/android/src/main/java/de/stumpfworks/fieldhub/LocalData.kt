@@ -52,8 +52,32 @@ internal data class RecruitingActivity(
     val createdAt: Long
 )
 
+@Entity(tableName = "recruiting_followups", indices = [Index("contactId")])
+internal data class RecruitingFollowup(
+    @PrimaryKey val id: String,
+    val contactId: String,
+    val title: String,
+    val dueAt: Long,
+    val done: Boolean = false
+)
+
 @Dao
 internal interface FieldHubDao {
+    @Query("SELECT * FROM recruiting_followups WHERE contactId = :contactId ORDER BY done ASC, dueAt ASC")
+    fun followups(contactId: String): Flow<List<RecruitingFollowup>>
+
+    @Query("SELECT * FROM recruiting_followups ORDER BY done ASC, dueAt ASC")
+    fun allFollowups(): Flow<List<RecruitingFollowup>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveFollowup(followup: RecruitingFollowup)
+
+    @Query("UPDATE recruiting_followups SET done = :done WHERE id = :id")
+    suspend fun setFollowupDone(id: String, done: Boolean)
+
+    @Query("DELETE FROM recruiting_followups WHERE contactId = :contactId")
+    suspend fun deleteFollowups(contactId: String)
+
     @Query("SELECT * FROM recruiting_activities WHERE contactId = :contactId ORDER BY createdAt DESC")
     fun activities(contactId: String): Flow<List<RecruitingActivity>>
 
@@ -94,7 +118,7 @@ internal interface FieldHubDao {
     suspend fun deleteTask(task: LocalTask)
 }
 
-@Database(entities = [LocalEvent::class, LocalTask::class, RecruitingContact::class, RecruitingActivity::class], version = 5, exportSchema = false)
+@Database(entities = [LocalEvent::class, LocalTask::class, RecruitingContact::class, RecruitingActivity::class, RecruitingFollowup::class], version = 6, exportSchema = false)
 internal abstract class FieldHubDatabase : RoomDatabase() {
     abstract fun dao(): FieldHubDao
     companion object {
@@ -134,12 +158,18 @@ internal abstract class FieldHubDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_recruiting_activities_contactId ON recruiting_activities(contactId)")
             }
         }
+        private val migration5to6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS recruiting_followups (id TEXT NOT NULL PRIMARY KEY, contactId TEXT NOT NULL, title TEXT NOT NULL, dueAt INTEGER NOT NULL, done INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_recruiting_followups_contactId ON recruiting_followups(contactId)")
+            }
+        }
         @Volatile private var instance: FieldHubDatabase? = null
         fun get(context: Context): FieldHubDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext, FieldHubDatabase::class.java, "fieldhub-local.db"
-                ).addMigrations(migration1to2, migration2to3, migration3to4, migration4to5).build().also { instance = it }
+                ).addMigrations(migration1to2, migration2to3, migration3to4, migration4to5, migration5to6).build().also { instance = it }
             }
     }
 }
