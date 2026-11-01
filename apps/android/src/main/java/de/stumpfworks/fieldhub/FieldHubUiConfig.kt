@@ -6,8 +6,9 @@ import org.json.JSONObject
 internal data class UiNavigationItem(val screen: String, val label: String, val minRole: String?)
 internal data class UiMetric(val id: String, val label: String, val dataSource: String, val action: String)
 internal data class UiDashboard(val title: String, val metrics: List<UiMetric>, val showPhases: Boolean)
-internal data class UiWorkspaceConfig(val id: String, val navigation: List<UiNavigationItem>, val dashboard: UiDashboard?)
+internal data class UiWorkspaceConfig(val id: String, val navigation: List<UiNavigationItem>, val dashboard: UiDashboard?, val forms: List<String>)
 internal data class FieldHubUiConfig(val schemaVersion: Int, val workspaces: List<UiWorkspaceConfig>) {
+    fun formsFor(workspaceId: String): List<String> = workspaces.firstOrNull { it.id == workspaceId }?.forms.orEmpty()
     fun dashboardFor(workspaceId: String): UiDashboard? = workspaces.firstOrNull { it.id == workspaceId }?.dashboard
     fun navigationFor(workspaceId: String, isRavensStaff: Boolean): List<UiNavigationItem> =
         workspaces.firstOrNull { it.id == workspaceId }?.navigation.orEmpty()
@@ -15,7 +16,7 @@ internal data class FieldHubUiConfig(val schemaVersion: Int, val workspaces: Lis
 }
 
 // Only a known set of screens may be rendered. JSON is configuration, never executable code.
-private val supportedScreens = setOf("today", "events", "team", "recruiting", "tasks", "profile")
+private val supportedScreens = setOf("today", "events", "team", "recruiting", "tasks", "forms", "profile")
 
 internal fun loadLocalUiConfig(context: Context): FieldHubUiConfig {
     val json = context.assets.open("fieldhub_ui_v1.json").bufferedReader().use { it.readText() }
@@ -59,7 +60,12 @@ internal fun parseUiConfig(json: String): FieldHubUiConfig {
             require(title.length in 1..60) { "Invalid dashboard title" }
             UiDashboard(title, parsed, board.optBoolean("showPhases", true))
         }
-        UiWorkspaceConfig(workspace.getString("id"), items, dashboard)
+        val formsJson = workspace.optJSONArray("forms")
+        val forms = if (formsJson == null) emptyList() else (0 until formsJson.length()).map { index ->
+            formsJson.getString(index).also { require(it.matches(Regex("[a-zA-Z][a-zA-Z0-9_-]{0,63}"))) { "Invalid form ID" } }
+        }
+        require(forms.size <= 20 && forms.distinct().size == forms.size) { "Invalid forms" }
+        UiWorkspaceConfig(workspace.getString("id"), items, dashboard, forms)
     }
     require(configs.map { it.id }.distinct().size == configs.size) { "Duplicate workspace ID" }
     return FieldHubUiConfig(1, configs)
