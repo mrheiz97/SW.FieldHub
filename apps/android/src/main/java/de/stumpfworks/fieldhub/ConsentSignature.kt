@@ -79,3 +79,21 @@ internal fun ConsentSignaturePad(value: String, onChange: (String) -> Unit) {
         }
     }
 }
+
+@Composable
+internal fun ConsentSignaturePreview(value: String) {
+    val strokes = remember(value) { decodeStrokes(value) }
+    Canvas(
+        Modifier.fillMaxWidth().height(120.dp)
+            .background(Color(0xFF111722), RoundedCornerShape(12.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+    ) {
+        strokes.forEach { stroke ->
+            val points = stroke.map { Offset(it.x * size.width, it.y * size.height) }
+            if (points.size == 1) drawCircle(Color.White, radius = 2.dp.toPx(), center = points[0])
+            points.zipWithNext().forEach { (a, b) ->
+                drawLine(Color.White, a, b, strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
+            }
+        }
+    }
+}
