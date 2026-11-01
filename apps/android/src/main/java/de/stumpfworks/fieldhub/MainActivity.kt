@@ -31,7 +31,7 @@ private val workspaces = listOf(
     Workspace("stumpfworks", "stumpfWORKS", "Administrator", "Was steht heute an?", "Aufgaben öffnen"),
     Workspace("sales", "Field Sales Demo", "Recruiter", "Neue Kontakte erfassen", "Kontakt hinzufügen")
 )
-private enum class Section(val title: String) { Today("Heute"), Events("Termine"), Team("Team"), Tasks("Aufgaben"), Profile("Profil") }
+private enum class Section(val title: String) { Today("Heute"), Events("Termine"), Team("Team"), Recruiting("Kontakte"), Tasks("Aufgaben"), Profile("Profil") }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,7 +64,13 @@ private fun FieldHubApp() {
                 containerColor = Background,
                 bottomBar = {
                     NavigationBar(containerColor = Surface) {
-                        Section.entries.filter { it != Section.Team || (selected.id == "ravens" && demoRole != DemoRole.Player) }.forEach { item ->
+                        Section.entries.filter { item ->
+                            when (item) {
+                                Section.Team -> selected.id == "ravens" && demoRole != DemoRole.Player
+                                Section.Recruiting -> selected.id != "ravens" || demoRole != DemoRole.Player
+                                else -> true
+                            }
+                        }.forEach { item ->
                             NavigationBarItem(
                                 selected = section == item,
                                 onClick = { section = item },
@@ -73,6 +79,7 @@ private fun FieldHubApp() {
                                         Section.Today -> Icon(Icons.Default.Home, contentDescription = null)
                                         Section.Events -> Icon(Icons.Default.Event, contentDescription = null)
                                         Section.Team -> Icon(Icons.Default.Groups, contentDescription = null)
+                                        Section.Recruiting -> Icon(Icons.Default.PersonAdd, contentDescription = null)
                                         Section.Tasks -> Icon(Icons.Default.CheckCircle, contentDescription = null)
                                         Section.Profile -> Icon(Icons.Default.Person, contentDescription = null)
                                     }
@@ -96,6 +103,7 @@ private fun FieldHubApp() {
                     when (section) {
                         Section.Today -> TodayScreen(selected)
                         Section.Events -> LocalEventsScreen(selected.id, selected.id != "ravens" || demoRole != DemoRole.Player)
+                        Section.Recruiting -> RecruitingScreen(selected.id)
                         Section.Team -> if (selected.id == "ravens" && demoRole != DemoRole.Player) CoachOverviewScreen() else PlaceholderScreen("Nicht verfügbar", "Dieser Bereich ist in der Demo nur für Trainer und Administratoren sichtbar.")
                         Section.Tasks -> LocalTasksScreen(selected.id)
                         Section.Profile -> RoleProfileScreen(selected.id, demoRole) { newRole -> demoRole = newRole; section = Section.Today }
