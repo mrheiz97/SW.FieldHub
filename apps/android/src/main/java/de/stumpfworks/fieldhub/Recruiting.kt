@@ -25,6 +25,7 @@ import java.util.UUID
 private val recruitingPanel = Color(0xFF1C2230)
 private val statuses = listOf("Neu", "Kontaktiert", "Interessiert", "Probetraining", "Gewonnen", "Abgesagt")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RecruitingScreen(workspaceId: String) {
     val context = LocalContext.current
