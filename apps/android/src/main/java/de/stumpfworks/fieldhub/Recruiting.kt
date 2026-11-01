@@ -53,7 +53,7 @@ internal fun RecruitingScreen(workspaceId: String) {
         }
         Text("${contacts.size} Kontakte · nur auf diesem Gerät", color = Color.LightGray)
         Spacer(Modifier.height(12.dp))
-        RecruitingDashboard(contacts, onFilterStatus = { selectedStatus = it }, onOpenContact = { detailId = it })
+        RecruitingDashboard(contacts, workspaceId = workspaceId, onFilterStatus = { selectedStatus = it }, onOpenContact = { detailId = it })
         Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = search, onValueChange = { search = it }, label = { Text("Name, Telefon, E-Mail suchen") },
