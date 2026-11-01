@@ -61,8 +61,23 @@ internal data class RecruitingFollowup(
     val done: Boolean = false
 )
 
+@Entity(tableName = "form_submissions", indices = [Index("workspaceId")])
+internal data class FormSubmission(
+    @PrimaryKey val id: String,
+    val workspaceId: String,
+    val formId: String,
+    val payloadJson: String,
+    val createdAt: Long
+)
+
 @Dao
 internal interface FieldHubDao {
+    @Insert
+    suspend fun saveFormSubmission(submission: FormSubmission)
+
+    @Query("SELECT * FROM form_submissions WHERE workspaceId = :workspaceId AND formId = :formId ORDER BY createdAt DESC")
+    fun formSubmissions(workspaceId: String, formId: String): Flow<List<FormSubmission>>
+
     @Query("SELECT * FROM recruiting_followups WHERE contactId = :contactId ORDER BY done ASC, dueAt ASC")
     fun followups(contactId: String): Flow<List<RecruitingFollowup>>
 
@@ -118,7 +133,7 @@ internal interface FieldHubDao {
     suspend fun deleteTask(task: LocalTask)
 }
 
-@Database(entities = [LocalEvent::class, LocalTask::class, RecruitingContact::class, RecruitingActivity::class, RecruitingFollowup::class], version = 6, exportSchema = false)
+@Database(entities = [LocalEvent::class, LocalTask::class, RecruitingContact::class, RecruitingActivity::class, RecruitingFollowup::class, FormSubmission::class], version = 7, exportSchema = false)
 internal abstract class FieldHubDatabase : RoomDatabase() {
     abstract fun dao(): FieldHubDao
     companion object {
@@ -164,12 +179,18 @@ internal abstract class FieldHubDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_recruiting_followups_contactId ON recruiting_followups(contactId)")
             }
         }
+        private val migration6to7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS form_submissions (id TEXT NOT NULL PRIMARY KEY, workspaceId TEXT NOT NULL, formId TEXT NOT NULL, payloadJson TEXT NOT NULL, createdAt INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_form_submissions_workspaceId ON form_submissions(workspaceId)")
+            }
+        }
         @Volatile private var instance: FieldHubDatabase? = null
         fun get(context: Context): FieldHubDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext, FieldHubDatabase::class.java, "fieldhub-local.db"
-                ).addMigrations(migration1to2, migration2to3, migration3to4, migration4to5, migration5to6).build().also { instance = it }
+                ).addMigrations(migration1to2, migration2to3, migration3to4, migration4to5, migration5to6, migration6to7).build().also { instance = it }
             }
     }
 }
