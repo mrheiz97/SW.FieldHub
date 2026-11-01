@@ -37,12 +37,16 @@ internal fun RecruitingScreen(workspaceId: String) {
     var selectedStatus by remember(workspaceId) { mutableStateOf("Alle") }
     var editing by remember(workspaceId) { mutableStateOf<RecruitingContact?>(null) }
     var creating by remember(workspaceId) { mutableStateOf(false) }
+    var detailId by remember(workspaceId) { mutableStateOf<String?>(null) }
+    val detail = contacts.firstOrNull { it.id == detailId }
     val filtered = contacts.filter {
         (selectedStatus == "Alle" || it.status == selectedStatus) &&
             (search.isBlank() || listOf(it.name, it.phone, it.email, it.notes).any { value -> value.contains(search, ignoreCase = true) })
     }
 
-    Column {
+    if (detail != null) {
+        RecruitingDetailScreen(detail, onBack = { detailId = null }, onEdit = { editing = detail })
+    } else Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Recruiting", style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
             TextButton(onClick = { creating = true }) { Text("+ Kontakt") }
@@ -62,7 +66,7 @@ internal fun RecruitingScreen(workspaceId: String) {
         Spacer(Modifier.height(12.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(filtered, key = { it.id }) { contact ->
-                Card(onClick = { editing = contact }, colors = CardDefaults.cardColors(containerColor = recruitingPanel)) {
+                Card(onClick = { detailId = contact.id }, colors = CardDefaults.cardColors(containerColor = recruitingPanel)) {
                     Column(Modifier.fillMaxWidth().padding(16.dp)) {
                         Text(contact.name, color = Color.White, style = MaterialTheme.typography.titleMedium)
                         Text(contact.status, color = MaterialTheme.colorScheme.primary)
@@ -186,7 +190,7 @@ internal fun RecruitingScreen(workspaceId: String) {
                                 Text("Diesen Kontakt dauerhaft löschen?", color = Color(0xFFFFCC80))
                                 Row {
                                     TextButton(onClick = {
-                                        scope.launch { dao.deleteContact(original) }
+                                        scope.launch { dao.deleteActivities(original.id); dao.deleteContact(original) }
                                         editing = null
                                     }) { Text("Endgültig löschen") }
                                     TextButton(onClick = { confirmDelete = false }) { Text("Behalten") }
