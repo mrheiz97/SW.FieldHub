@@ -38,6 +38,7 @@ internal fun RecruitingScreen(workspaceId: String) {
     var editing by remember(workspaceId) { mutableStateOf<RecruitingContact?>(null) }
     var creating by remember(workspaceId) { mutableStateOf(false) }
     var formPreview by remember(workspaceId) { mutableStateOf(false) }
+    var formEntries by remember(workspaceId) { mutableStateOf(false) }
     var detailId by remember(workspaceId) { mutableStateOf<String?>(null) }
     val detail = contacts.firstOrNull { it.id == detailId }
     val filtered = contacts.filter {
@@ -51,7 +52,8 @@ internal fun RecruitingScreen(workspaceId: String) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Recruiting", style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { formPreview = true }) { Text("Formular-Demo") }
+                TextButton(onClick = { formEntries = true }) { Text("Einträge") }
+                TextButton(onClick = { formPreview = true }) { Text("Formular") }
                 TextButton(onClick = { creating = true }) { Text("+ Kontakt") }
             }
         }
@@ -101,6 +103,7 @@ internal fun RecruitingScreen(workspaceId: String) {
     }
 
     if (formPreview) DynamicFormPreview(workspaceId = workspaceId, onDismiss = { formPreview = false })
+    if (formEntries) DynamicFormEntries(workspaceId = workspaceId, onDismiss = { formEntries = false })
 
     if (creating || editing != null) {
         val original = editing
