@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fieldhub
+      POSTGRES_USER: fieldhub
+      POSTGRES_PASSWORD: ${FIELDHUB_DB_PASSWORD:?Set FIELDHUB_DB_PASSWORD}
+    volumes:
+      - fieldhub_pg:/var/lib/postgresql/data
+      - ../../services/api/sql/001_initial.sql:/docker-entrypoint-initdb.d/001_initial.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fieldhub -d fieldhub"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  api:
+    build: ../../services/api
+    restart: unless-stopped
+    environment:
+      FIELDHUB_DATABASE_URL: postgresql+psycopg://fieldhub:${FIELDHUB_DB_PASSWORD}@db:5432/fieldhub
+      FIELDHUB_OIDC_ISSUER: ${FIELDHUB_OIDC_ISSUER:?Set OIDC issuer}
+      FIELDHUB_OIDC_AUDIENCE: ${FIELDHUB_OIDC_AUDIENCE:?Set OIDC audience}
+      FIELDHUB_OIDC_JWKS_URL: ${FIELDHUB_OIDC_JWKS_URL:?Set HTTPS JWKS URL}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+volumes:
+  fieldhub_pg:
