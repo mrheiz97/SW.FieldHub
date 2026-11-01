@@ -95,9 +95,9 @@ private fun FieldHubApp() {
                     Spacer(Modifier.height(16.dp))
                     when (section) {
                         Section.Today -> TodayScreen(selected)
-                        Section.Events -> EventListScreen(selected.id)
+                        Section.Events -> LocalEventsScreen(selected.id, selected.id != "ravens" || demoRole != DemoRole.Player)
                         Section.Team -> if (selected.id == "ravens" && demoRole != DemoRole.Player) CoachOverviewScreen() else PlaceholderScreen("Nicht verfügbar", "Dieser Bereich ist in der Demo nur für Trainer und Administratoren sichtbar.")
-                        Section.Tasks -> DemoTasksScreen(selected.id)
+                        Section.Tasks -> LocalTasksScreen(selected.id)
                         Section.Profile -> RoleProfileScreen(selected.id, demoRole) { newRole -> demoRole = newRole; section = Section.Today }
                     }
                 }
