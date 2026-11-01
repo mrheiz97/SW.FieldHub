@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 
 private val Background = Color(0xFF10131C)
 private val Surface = Color(0xFF1C2230)
@@ -156,23 +157,27 @@ private fun TodayScreen(workspace: Workspace) {
     var actionOpened by remember(workspace.id) { mutableStateOf(false) }
     Text(workspace.role.uppercase(), color = Accent, style = MaterialTheme.typography.labelMedium)
     Spacer(Modifier.height(8.dp))
-    Text(workspace.headline, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text(workspace.headline, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
     Spacer(Modifier.height(8.dp))
     Text("Deine persönliche Übersicht", color = Color.LightGray)
     Spacer(Modifier.height(28.dp))
-    Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(24.dp)) {
-        Column(Modifier.fillMaxWidth().padding(20.dp)) {
-            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Accent)
-            Spacer(Modifier.height(14.dp))
-            Text("Für dich wichtig", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
-            Text("Dein nächster Schritt", color = Color.LightGray)
-            Spacer(Modifier.height(18.dp))
-            Button(onClick = { actionOpened = true }, modifier = Modifier.fillMaxWidth()) { Text(workspace.action) }
+    if (workspace.id == "ravens") {
+        TrainingCard()
+    } else {
+        Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(24.dp)) {
+            Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Accent)
+                Spacer(Modifier.height(14.dp))
+                Text("Für dich wichtig", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Spacer(Modifier.height(8.dp))
+                Text("Dein nächster Schritt", color = Color.LightGray)
+                Spacer(Modifier.height(18.dp))
+                Button(onClick = { actionOpened = true }, modifier = Modifier.fillMaxWidth()) { Text(workspace.action) }
+            }
         }
     }
     Spacer(Modifier.height(20.dp))
-    Text("Demo-Modus · Noch keine Serververbindung", color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
+    Text("Demo-Modus · Keine Serververbindung", color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
     if (actionOpened) {
         AlertDialog(
             onDismissRequest = { actionOpened = false },
@@ -180,6 +185,68 @@ private fun TodayScreen(workspace: Workspace) {
             text = { Text("Dieser Ablauf wird im nächsten Entwicklungsschritt implementiert.") },
             confirmButton = { TextButton(onClick = { actionOpened = false }) { Text("Verstanden") } }
         )
+    }
+}
+
+private enum class Attendance { Unknown, Yes, No }
+
+@Composable
+private fun TrainingCard() {
+    val context = LocalContext.current
+    val preferences = remember(context) {
+        context.getSharedPreferences("fieldhub_demo_training", android.content.Context.MODE_PRIVATE)
+    }
+    var attendance by remember {
+        mutableStateOf(
+            when (preferences.getString("ravens_training_demo", "unknown")) {
+                "yes" -> Attendance.Yes
+                "no" -> Attendance.No
+                else -> Attendance.Unknown
+            }
+        )
+    }
+    fun setAttendance(value: Attendance) {
+        attendance = value
+        preferences.edit().putString("ravens_training_demo", when (value) {
+            Attendance.Yes -> "yes"
+            Attendance.No -> "no"
+            Attendance.Unknown -> "unknown"
+        }).apply()
+    }
+    Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(24.dp)) {
+        Column(Modifier.fillMaxWidth().padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Event, contentDescription = null, tint = Accent)
+                Spacer(Modifier.width(10.dp))
+                Text("Nächstes Training", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            }
+            Spacer(Modifier.height(14.dp))
+            Text("Ravens Teamtraining", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = Color.White)
+            Spacer(Modifier.height(8.dp))
+            Text("Beispieltermin · Dienstag, 18:30 Uhr", color = Color.LightGray)
+            Spacer(Modifier.height(14.dp))
+            val status = when (attendance) {
+                Attendance.Yes -> "Du hast zugesagt"
+                Attendance.No -> "Du hast abgesagt"
+                Attendance.Unknown -> "Deine Teilnahme ist noch offen"
+            }
+            Text(status, color = if (attendance == Attendance.Yes) Accent else Color.White)
+            Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = { setAttendance(Attendance.Yes) },
+                    enabled = attendance != Attendance.Yes,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Zusagen") }
+                OutlinedButton(
+                    onClick = { setAttendance(Attendance.No) },
+                    enabled = attendance != Attendance.No,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Absagen") }
+            }
+            Spacer(Modifier.height(12.dp))
+            Text("Nur lokale Demo: keine echte Anmeldung oder Übermittlung an Trainer.", color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 
