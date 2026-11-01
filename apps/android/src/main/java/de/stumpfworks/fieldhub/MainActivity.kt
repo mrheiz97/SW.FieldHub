@@ -31,7 +31,7 @@ private val workspaces = listOf(
     Workspace("stumpfworks", "stumpfWORKS", "Administrator", "Was steht heute an?", "Aufgaben öffnen"),
     Workspace("sales", "Field Sales Demo", "Recruiter", "Neue Kontakte erfassen", "Kontakt hinzufügen")
 )
-private enum class Section(val title: String) { Today("Heute"), Events("Termine"), Tasks("Aufgaben"), Profile("Profil") }
+private enum class Section(val title: String) { Today("Heute"), Events("Termine"), Team("Team"), Tasks("Aufgaben"), Profile("Profil") }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,6 +52,7 @@ private fun FieldHubApp() {
         preferences.edit().putString("last_workspace_id", id).apply()
     }
     var section by remember { mutableStateOf(Section.Today) }
+    var demoRole by remember { mutableStateOf(DemoRole.Player) }
     var showWorkspaces by remember { mutableStateOf(false) }
     val selected = workspaces.firstOrNull { it.id == selectedId }
     val colors = darkColorScheme(primary = Accent, background = Background, surface = Surface, onSurface = Color.White)
@@ -63,7 +64,7 @@ private fun FieldHubApp() {
                 containerColor = Background,
                 bottomBar = {
                     NavigationBar(containerColor = Surface) {
-                        Section.entries.forEach { item ->
+                        Section.entries.filter { it != Section.Team || (selected.id == "ravens" && demoRole != DemoRole.Player) }.forEach { item ->
                             NavigationBarItem(
                                 selected = section == item,
                                 onClick = { section = item },
@@ -71,6 +72,7 @@ private fun FieldHubApp() {
                                     when (item) {
                                         Section.Today -> Icon(Icons.Default.Home, contentDescription = null)
                                         Section.Events -> Icon(Icons.Default.Event, contentDescription = null)
+                                        Section.Team -> Icon(Icons.Default.Groups, contentDescription = null)
                                         Section.Tasks -> Icon(Icons.Default.CheckCircle, contentDescription = null)
                                         Section.Profile -> Icon(Icons.Default.Person, contentDescription = null)
                                     }
@@ -94,8 +96,9 @@ private fun FieldHubApp() {
                     when (section) {
                         Section.Today -> TodayScreen(selected)
                         Section.Events -> EventListScreen(selected.id)
-                        Section.Tasks -> PlaceholderScreen("Deine Aufgaben", "Hier erscheinen später die Aufgaben dieses Workspaces.")
-                        Section.Profile -> PlaceholderScreen("Dein Profil", "Deine Mitgliedschaften und Einstellungen folgen.")
+                        Section.Team -> if (selected.id == "ravens" && demoRole != DemoRole.Player) CoachOverviewScreen() else PlaceholderScreen("Nicht verfügbar", "Dieser Bereich ist in der Demo nur für Trainer und Administratoren sichtbar.")
+                        Section.Tasks -> DemoTasksScreen(selected.id)
+                        Section.Profile -> RoleProfileScreen(selected.id, demoRole) { newRole -> demoRole = newRole; section = Section.Today }
                     }
                 }
             }
@@ -107,7 +110,7 @@ private fun FieldHubApp() {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             workspaces.forEach { workspace ->
                                 TextButton(
-                                    onClick = { selectWorkspace(workspace.id); section = Section.Today; showWorkspaces = false },
+                                    onClick = { selectWorkspace(workspace.id); demoRole = DemoRole.Player; section = Section.Today; showWorkspaces = false },
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(workspace.name, modifier = Modifier.weight(1f))
