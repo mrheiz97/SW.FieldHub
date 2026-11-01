@@ -37,6 +37,7 @@ internal fun RecruitingScreen(workspaceId: String) {
     var selectedStatus by remember(workspaceId) { mutableStateOf("Alle") }
     var editing by remember(workspaceId) { mutableStateOf<RecruitingContact?>(null) }
     var creating by remember(workspaceId) { mutableStateOf(false) }
+    var formPreview by remember(workspaceId) { mutableStateOf(false) }
     var detailId by remember(workspaceId) { mutableStateOf<String?>(null) }
     val detail = contacts.firstOrNull { it.id == detailId }
     val filtered = contacts.filter {
@@ -49,7 +50,10 @@ internal fun RecruitingScreen(workspaceId: String) {
     } else Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Recruiting", style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
-            TextButton(onClick = { creating = true }) { Text("+ Kontakt") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { formPreview = true }) { Text("Formular-Demo") }
+                TextButton(onClick = { creating = true }) { Text("+ Kontakt") }
+            }
         }
         OutlinedTextField(
             value = search, onValueChange = { search = it },
@@ -94,6 +98,8 @@ internal fun RecruitingScreen(workspaceId: String) {
             }
         if (filtered.isEmpty()) item { Text("Keine Kontakte gefunden. Prüfe Suche und Statusfilter.", color = Color.LightGray) }
     }
+
+    if (formPreview) DynamicFormPreview(onDismiss = { formPreview = false })
 
     if (creating || editing != null) {
         val original = editing
