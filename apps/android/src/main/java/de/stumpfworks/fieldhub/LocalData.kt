@@ -40,7 +40,8 @@ internal data class RecruitingContact(
     val status: String,
     val consentToContact: Boolean,
     val consentRecordedAt: Long?,
-    val createdAt: Long
+    val createdAt: Long,
+    @ColumnInfo(defaultValue = "''") val consentSignature: String = ""
 )
 
 @Dao
@@ -76,7 +77,7 @@ internal interface FieldHubDao {
     suspend fun deleteTask(task: LocalTask)
 }
 
-@Database(entities = [LocalEvent::class, LocalTask::class, RecruitingContact::class], version = 3, exportSchema = false)
+@Database(entities = [LocalEvent::class, LocalTask::class, RecruitingContact::class], version = 4, exportSchema = false)
 internal abstract class FieldHubDatabase : RoomDatabase() {
     abstract fun dao(): FieldHubDao
     companion object {
@@ -105,12 +106,17 @@ internal abstract class FieldHubDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE local_events ADD COLUMN attendance TEXT NOT NULL DEFAULT 'unknown'")
             }
         }
+        private val migration3to4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE recruiting_contacts ADD COLUMN consentSignature TEXT NOT NULL DEFAULT ''")
+            }
+        }
         @Volatile private var instance: FieldHubDatabase? = null
         fun get(context: Context): FieldHubDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext, FieldHubDatabase::class.java, "fieldhub-local.db"
-                ).addMigrations(migration1to2, migration2to3).build().also { instance = it }
+                ).addMigrations(migration1to2, migration2to3, migration3to4).build().also { instance = it }
             }
     }
 }
