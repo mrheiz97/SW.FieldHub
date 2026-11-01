@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FieldHubApp() {
     val context = LocalContext.current
