@@ -73,7 +73,7 @@ internal interface FieldHubDao {
     suspend fun deleteTask(task: LocalTask)
 }
 
-@Database(entities = [LocalEvent::class, LocalTask::class, RecruitingContact::class], version = 2, exportSchema = false)
+@Database(entities = [LocalEvent::class, LocalTask::class, RecruitingContact::class], version = 3, exportSchema = false)
 internal abstract class FieldHubDatabase : RoomDatabase() {
     abstract fun dao(): FieldHubDao
     companion object {
@@ -96,12 +96,18 @@ internal abstract class FieldHubDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_recruiting_contacts_workspaceId ON recruiting_contacts(workspaceId)")
             }
         }
+        private val migration2to3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE local_events ADD COLUMN startAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE local_events ADD COLUMN attendance TEXT NOT NULL DEFAULT 'unknown'")
+            }
+        }
         @Volatile private var instance: FieldHubDatabase? = null
         fun get(context: Context): FieldHubDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext, FieldHubDatabase::class.java, "fieldhub-local.db"
-                ).addMigrations(migration1to2).build().also { instance = it }
+                ).addMigrations(migration1to2, migration2to3).build().also { instance = it }
             }
     }
 }
