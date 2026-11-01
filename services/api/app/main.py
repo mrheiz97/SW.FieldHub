@@ -49,7 +49,7 @@ def get_form(workspace_id: str, form_id: str, subject: str = Depends(current_sub
                                       Form.published.is_(True)).order_by(Form.version.desc()).limit(1))
     if form is None:
         raise HTTPException(404, "Form not found")
-    return form.schema
+    return form.definition
 
 @app.get("/v1/workspaces/{workspace_id}/forms/{form_id}/submissions")
 def list_submissions(workspace_id: str, form_id: str, limit: int = 25,
