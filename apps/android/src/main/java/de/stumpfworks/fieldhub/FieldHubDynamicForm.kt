@@ -8,10 +8,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+import java.util.UUID
 
 /** Preview-only renderer. Does not write contact records or imply consent. */
 @Composable
-internal fun DynamicFormPreview(onDismiss: () -> Unit) {
+internal fun DynamicFormPreview(workspaceId: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val schema = remember(context) {
         runCatching {
@@ -19,7 +22,15 @@ internal fun DynamicFormPreview(onDismiss: () -> Unit) {
             parseFormSchema(json)
         }.getOrNull()
     }
-    val values = remember { mutableStateMapOf<String, String>() }
+    val values = remember(workspaceId) { mutableStateMapOf<String, String>() }
+    val errors = remember { mutableStateMapOf<String, String>() }
+    val scope = rememberCoroutineScope()
+    val dao = remember(context) { FieldHubDatabase.get(context).dao() }
+    var saving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    val submissions by remember(dao, workspaceId, schema?.id) {
+        dao.formSubmissions(workspaceId, schema?.id ?: "unknown")
+    }.collectAsState(initial = emptyList())
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(schema?.title ?: "Formular nicht verfügbar") },
@@ -56,9 +67,42 @@ internal fun DynamicFormPreview(onDismiss: () -> Unit) {
                         )
                     }
                 }
-                Text("Nur Vorschau: Keine Speicherung und keine Einwilligungserfassung.", style = MaterialTheme.typography.bodySmall)
+                errors.forEach { (id, message) ->
+                    Text((schema?.fields?.firstOrNull { it.id == id }?.label ?: id) + ": " + message, color = MaterialTheme.colorScheme.error)
+                }
+                saveError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Text("Gespeicherte Einträge: " + submissions.size, style = MaterialTheme.typography.bodySmall)
+                Text("Separate lokale Speicherung – keine Kontaktanlage oder Einwilligung.", style = MaterialTheme.typography.bodySmall)
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Schließen") } }
+        confirmButton = {
+            TextButton(enabled = schema != null && !saving, onClick = {
+                val form = schema ?: return@TextButton
+                errors.clear()
+                errors.putAll(validateFormValues(form, values))
+                if (errors.isNotEmpty()) return@TextButton
+                saving = true
+                saveError = null
+                val payload = JSONObject()
+                form.fields.forEach { field -> payload.put(field.id, values[field.id].orEmpty().trim()) }
+                scope.launch {
+                    try {
+                        dao.saveFormSubmission(FormSubmission(
+                            id = UUID.randomUUID().toString(),
+                            workspaceId = workspaceId,
+                            formId = form.id,
+                            payloadJson = payload.toString(),
+                            createdAt = System.currentTimeMillis()
+                        ))
+                        onDismiss()
+                    } catch (error: Exception) {
+                        saveError = "Speichern fehlgeschlagen. Bitte erneut versuchen."
+                    } finally {
+                        saving = false
+                    }
+                }
+            }) { Text(if (saving) "Speichert…" else "Lokal speichern") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } }
     )
 }
