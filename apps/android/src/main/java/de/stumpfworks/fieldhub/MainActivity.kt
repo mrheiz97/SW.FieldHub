@@ -33,7 +33,7 @@ private val workspaces = listOf(
     Workspace("stumpfworks", "stumpfWORKS", "Administrator", "Was steht heute an?", "Aufgaben öffnen"),
     Workspace("sales", "Field Sales Demo", "Recruiter", "Neue Kontakte erfassen", "Kontakt hinzufügen")
 )
-private enum class Section(val title: String) { Today("Heute"), Events("Termine"), Team("Team"), Recruiting("Kontakte"), Tasks("Aufgaben"), Profile("Profil") }
+private enum class Section(val title: String) { Today("Heute"), Events("Termine"), Team("Team"), Recruiting("Kontakte"), Tasks("Aufgaben"), Forms("Formulare"), Profile("Profil") }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,6 +101,7 @@ private fun FieldHubApp() {
                                         Section.Team -> Icon(Icons.Default.Groups, contentDescription = null)
                                         Section.Recruiting -> Icon(Icons.Default.PersonAdd, contentDescription = null)
                                         Section.Tasks -> Icon(Icons.Default.CheckCircle, contentDescription = null)
+                                        Section.Forms -> Icon(Icons.Default.Description, contentDescription = null)
                                         Section.Profile -> Icon(Icons.Default.Person, contentDescription = null)
                                     }
                                 },
@@ -131,6 +132,7 @@ private fun FieldHubApp() {
                         Section.Recruiting -> RecruitingScreen(selected.id)
                         Section.Team -> if (selected.id == "ravens" && demoRole != DemoRole.Player) LocalTrainingOverviewScreen(selected.id) else PlaceholderScreen("Nicht verfügbar", "Dieser Bereich ist in der Demo nur für Trainer und Administratoren sichtbar.")
                         Section.Tasks -> LocalTasksScreen(selected.id)
+                        Section.Forms -> FormsWorkspaceScreen(selected.id, uiConfig?.formsFor(selected.id).orEmpty())
                         Section.Profile -> RoleProfileScreen(selected.id, demoRole) { newRole -> demoRole = newRole; section = Section.Today }
                     }
                 }
