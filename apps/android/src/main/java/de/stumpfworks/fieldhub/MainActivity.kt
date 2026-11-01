@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.BoxWithConstraints
 
 private val Background = Color(0xFF10131C)
 private val Surface = Color(0xFF1C2230)
@@ -57,6 +58,7 @@ private fun FieldHubApp() {
     var demoRole by remember { mutableStateOf(DemoRole.Player) }
     var showWorkspaces by remember { mutableStateOf(false) }
     var showServerSettings by remember { mutableStateOf(false) }
+    var showMoreNavigation by remember { mutableStateOf(false) }
     val selected = workspaces.firstOrNull { it.id == selectedId }
     val uiConfig = remember(context) { runCatching { loadLocalUiConfig(context) }.getOrNull() }
     val configuredNavigation = selected?.let { workspace ->
@@ -81,60 +83,96 @@ private fun FieldHubApp() {
             section = visibleNavigation.firstOrNull()?.first ?: Section.Today
         }
     }
+    val windowWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+    val useRail = windowWidth >= 600
+    val primaryNavigation = visibleNavigation.take(4)
+    val overflowNavigation = visibleNavigation.drop(4)
     val colors = darkColorScheme(primary = Accent, background = Background, surface = Surface, onSurface = Color.White)
     MaterialTheme(colorScheme = colors) {
         if (selected == null) {
             WorkspacePicker(onSelect = { selectWorkspace(it.id); section = Section.Today }, onSettings = { showServerSettings = true })
         } else {
-            Scaffold(
-                containerColor = Background,
-                bottomBar = {
-                    NavigationBar(containerColor = Surface) {
+            Row(Modifier.fillMaxSize()) {
+                if (useRail) {
+                    NavigationRail(containerColor = Surface) {
                         visibleNavigation.forEach { (item, label) ->
-                            NavigationBarItem(
+                            NavigationRailItem(
                                 selected = section == item,
                                 onClick = { section = item },
-                                icon = {
-                                    when (item) {
-                                        Section.Today -> Icon(Icons.Default.Home, contentDescription = null)
-                                        Section.Events -> Icon(Icons.Default.Event, contentDescription = null)
-                                        Section.Team -> Icon(Icons.Default.Groups, contentDescription = null)
-                                        Section.Recruiting -> Icon(Icons.Default.PersonAdd, contentDescription = null)
-                                        Section.Tasks -> Icon(Icons.Default.CheckCircle, contentDescription = null)
-                                        Section.Forms -> Icon(Icons.Default.Description, contentDescription = null)
-                                        Section.Profile -> Icon(Icons.Default.Person, contentDescription = null)
-                                    }
-                                },
-                                label = { Text(label) }
+                                icon = { FieldHubNavigationIcon(item) },
+                                label = { Text(label) },
+                                alwaysShowLabel = true
                             )
                         }
                     }
                 }
-            ) { padding ->
-                Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp)) {
-                    Spacer(Modifier.height(20.dp))
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { showWorkspaces = true }, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Default.Business, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(selected.name)
-                        Spacer(Modifier.width(4.dp))
-                        Icon(Icons.Default.ArrowDropDown, contentDescription = "Workspace wechseln")
+                Scaffold(
+                    modifier = Modifier.weight(1f),
+                    containerColor = Background,
+                    bottomBar = {
+                        if (!useRail) NavigationBar(containerColor = Surface) {
+                            primaryNavigation.forEach { (item, label) ->
+                                NavigationBarItem(
+                                    selected = section == item,
+                                    onClick = { section = item },
+                                    icon = { FieldHubNavigationIcon(item) },
+                                    label = { Text(label) }
+                                )
+                            }
+                            if (overflowNavigation.isNotEmpty()) {
+                                NavigationBarItem(
+                                    selected = overflowNavigation.any { it.first == section },
+                                    onClick = { showMoreNavigation = true },
+                                    icon = { Icon(Icons.Default.MoreHoriz, contentDescription = null) },
+                                    label = { Text("Mehr") }
+                                )
+                            }
+                        }
                     }
-                    IconButton(onClick = { showServerSettings = true }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Servereinstellungen")
+                ) { padding ->
+                    Box(Modifier.fillMaxSize().padding(padding)) {
+                                        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+                                            Spacer(Modifier.height(20.dp))
+                                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                            TextButton(onClick = { showWorkspaces = true }, modifier = Modifier.weight(1f)) {
+                                                Icon(Icons.Default.Business, contentDescription = null)
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(selected.name)
+                                                Spacer(Modifier.width(4.dp))
+                                                Icon(Icons.Default.ArrowDropDown, contentDescription = "Workspace wechseln")
+                                            }
+                                            IconButton(onClick = { showServerSettings = true }) {
+                                                Icon(Icons.Default.Settings, contentDescription = "Servereinstellungen")
+                                            }
+                                            }
+                                            Spacer(Modifier.height(16.dp))
+                                            when (section) {
+                                                Section.Today -> TodayScreen(selected)
+                                                Section.Events -> LocalEventsScreen(selected.id, selected.id != "ravens" || demoRole != DemoRole.Player)
+                                                Section.Recruiting -> RecruitingScreen(selected.id)
+                                                Section.Team -> if (selected.id == "ravens" && demoRole != DemoRole.Player) LocalTrainingOverviewScreen(selected.id) else PlaceholderScreen("Nicht verfügbar", "Dieser Bereich ist in der Demo nur für Trainer und Administratoren sichtbar.")
+                                                Section.Tasks -> LocalTasksScreen(selected.id)
+                                                Section.Forms -> FormsWorkspaceScreen(selected.id, uiConfig?.formsFor(selected.id).orEmpty())
+                                                Section.Profile -> RoleProfileScreen(selected.id, demoRole) { newRole -> demoRole = newRole; section = Section.Today }
+                                            }
+                                        }
+                        
                     }
+                }
+            }
+            if (showMoreNavigation && !useRail) {
+                ModalBottomSheet(onDismissRequest = { showMoreNavigation = false }, containerColor = Surface) {
+                    Text("Weitere Bereiche", modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp), style = MaterialTheme.typography.titleLarge)
+                    overflowNavigation.forEach { (item, label) ->
+                        NavigationDrawerItem(
+                            label = { Text(label) },
+                            selected = section == item,
+                            onClick = { section = item; showMoreNavigation = false },
+                            icon = { FieldHubNavigationIcon(item) },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                        )
                     }
-                    Spacer(Modifier.height(16.dp))
-                    when (section) {
-                        Section.Today -> TodayScreen(selected)
-                        Section.Events -> LocalEventsScreen(selected.id, selected.id != "ravens" || demoRole != DemoRole.Player)
-                        Section.Recruiting -> RecruitingScreen(selected.id)
-                        Section.Team -> if (selected.id == "ravens" && demoRole != DemoRole.Player) LocalTrainingOverviewScreen(selected.id) else PlaceholderScreen("Nicht verfügbar", "Dieser Bereich ist in der Demo nur für Trainer und Administratoren sichtbar.")
-                        Section.Tasks -> LocalTasksScreen(selected.id)
-                        Section.Forms -> FormsWorkspaceScreen(selected.id, uiConfig?.formsFor(selected.id).orEmpty())
-                        Section.Profile -> RoleProfileScreen(selected.id, demoRole) { newRole -> demoRole = newRole; section = Section.Today }
-                    }
+                    Spacer(Modifier.height(24.dp))
                 }
             }
             if (showWorkspaces) {
@@ -270,5 +308,18 @@ private fun PlaceholderScreen(title: String, description: String) {
     Spacer(Modifier.height(12.dp))
     Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(20.dp)) {
         Text(description, modifier = Modifier.fillMaxWidth().padding(24.dp), color = Color.LightGray)
+    }
+}
+
+@Composable
+private fun FieldHubNavigationIcon(item: Section) {
+    when (item) {
+        Section.Today -> Icon(Icons.Default.Home, contentDescription = null)
+        Section.Events -> Icon(Icons.Default.Event, contentDescription = null)
+        Section.Team -> Icon(Icons.Default.Groups, contentDescription = null)
+        Section.Recruiting -> Icon(Icons.Default.PersonAdd, contentDescription = null)
+        Section.Tasks -> Icon(Icons.Default.CheckCircle, contentDescription = null)
+        Section.Forms -> Icon(Icons.Default.Description, contentDescription = null)
+        Section.Profile -> Icon(Icons.Default.Person, contentDescription = null)
     }
 }
