@@ -85,6 +85,7 @@ internal fun RecruitingScreen(workspaceId: String) {
         var notes by remember(original?.id, creating) { mutableStateOf(original?.notes.orEmpty()) }
         var status by remember(original?.id, creating) { mutableStateOf(original?.status ?: "Neu") }
         var consent by remember(original?.id, creating) { mutableStateOf(original?.consentToContact ?: false) }
+        var signature by remember(original?.id, creating) { mutableStateOf(original?.consentSignature.orEmpty()) }
         var confirmDelete by remember(original?.id, creating) { mutableStateOf(false) }
         var statusExpanded by remember(original?.id, creating) { mutableStateOf(false) }
         Dialog(
@@ -163,10 +164,21 @@ internal fun RecruitingScreen(workspaceId: String) {
                         )
                         HorizontalDivider(color = Color.White.copy(alpha = 0.10f))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = consent, onCheckedChange = { consent = it })
+                            Checkbox(checked = consent, onCheckedChange = { consent = it; if (!it) signature = "" })
                             Column(Modifier.weight(1f)) {
                                 Text("Einwilligung zur Kontaktaufnahme", style = MaterialTheme.typography.bodyMedium)
                                 Text("Nur aktivieren, wenn sie tatsächlich vorliegt.", color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        if (consent) {
+                            Text(
+                                "Ich bin damit einverstanden, dass die hier erfassten Kontaktdaten verwendet werden, um mich wegen meines Interesses an einer Teilnahme oder Mitgliedschaft zu kontaktieren. Die Einwilligung ist freiwillig und kann jederzeit widerrufen werden.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.LightGray
+                            )
+                            ConsentSignaturePad(value = signature, onChange = { signature = it })
+                            if (signature.isBlank()) {
+                                Text("Bitte vor dem Speichern unterschreiben lassen.", color = Color(0xFFFFCC80), style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         if (original != null) {
@@ -193,7 +205,7 @@ internal fun RecruitingScreen(workspaceId: String) {
                             modifier = Modifier.weight(1f)
                         ) { Text("Abbrechen") }
                         Button(
-                            enabled = name.isNotBlank() && (phone.isNotBlank() || email.isNotBlank()),
+                            enabled = name.isNotBlank() && (phone.isNotBlank() || email.isNotBlank()) && (!consent || signature.isNotBlank() || (original?.consentToContact == true && original.consentSignature.isBlank())),
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 val now = System.currentTimeMillis()
@@ -205,7 +217,8 @@ internal fun RecruitingScreen(workspaceId: String) {
                                             name = name.trim(), phone = phone.trim(), email = email.trim(),
                                             notes = notes.trim(), status = status, consentToContact = consent,
                                             consentRecordedAt = if (consent) original?.consentRecordedAt ?: now else null,
-                                            createdAt = original?.createdAt ?: now
+                                            createdAt = original?.createdAt ?: now,
+                                            consentSignature = if (consent) signature else ""
                                         )
                                     )
                                 }
