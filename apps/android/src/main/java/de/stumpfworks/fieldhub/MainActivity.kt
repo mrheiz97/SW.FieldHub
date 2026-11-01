@@ -1,6 +1,7 @@
 package de.stumpfworks.fieldhub
 
 import android.os.Bundle
+import androidx.compose.ui.platform.LocalContext
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -41,14 +42,22 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun FieldHubApp() {
-    var selectedId by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val preferences = remember(context) { context.getSharedPreferences("fieldhub_local", android.content.Context.MODE_PRIVATE) }
+    var selectedId by remember {
+        mutableStateOf(preferences.getString("last_workspace_id", null)?.takeIf { id -> workspaces.any { it.id == id } })
+    }
+    fun selectWorkspace(id: String) {
+        selectedId = id
+        preferences.edit().putString("last_workspace_id", id).apply()
+    }
     var section by remember { mutableStateOf(Section.Today) }
     var showWorkspaces by remember { mutableStateOf(false) }
     val selected = workspaces.firstOrNull { it.id == selectedId }
     val colors = darkColorScheme(primary = Accent, background = Background, surface = Surface, onSurface = Color.White)
     MaterialTheme(colorScheme = colors) {
         if (selected == null) {
-            WorkspacePicker { selectedId = it.id; section = Section.Today }
+            WorkspacePicker { selectWorkspace(it.id); section = Section.Today }
         } else {
             Scaffold(
                 containerColor = Background,
@@ -96,7 +105,7 @@ private fun FieldHubApp() {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             workspaces.forEach { workspace ->
                                 TextButton(
-                                    onClick = { selectedId = workspace.id; section = Section.Today; showWorkspaces = false },
+                                    onClick = { selectWorkspace(workspace.id); section = Section.Today; showWorkspaces = false },
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(workspace.name, modifier = Modifier.weight(1f))
@@ -116,7 +125,7 @@ private fun FieldHubApp() {
 private fun WorkspacePicker(onSelect: (Workspace) -> Unit) {
     Column(Modifier.fillMaxSize().background(Background).padding(20.dp)) {
         Spacer(Modifier.height(24.dp))
-        Text("FieldHub", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+        Text("FieldHub", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color.White)
         Spacer(Modifier.height(8.dp))
         Text("Wähle deinen Workspace", color = Color.LightGray)
         Spacer(Modifier.height(28.dp))
@@ -131,7 +140,7 @@ private fun WorkspacePicker(onSelect: (Workspace) -> Unit) {
                         Icon(Icons.Default.Business, contentDescription = null, tint = Accent)
                         Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(workspace.name, fontWeight = FontWeight.SemiBold)
+                            Text(workspace.name, fontWeight = FontWeight.SemiBold, color = Color.White)
                             Text(workspace.role, color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
                         }
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Workspace öffnen")
