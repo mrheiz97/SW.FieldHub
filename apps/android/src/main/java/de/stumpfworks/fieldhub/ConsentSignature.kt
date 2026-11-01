@@ -37,7 +37,7 @@ internal fun ConsentSignaturePad(value: String, onChange: (String) -> Unit) {
     val strokes = remember(value) { decodeStrokes(value) }
     var activeStroke by remember { mutableStateOf<List<Offset>>(emptyList()) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Unterschrift der kontaktierenden Person", style = MaterialTheme.typography.labelMedium)
+        Text("Unterschrift der kontaktierten Person", style = MaterialTheme.typography.labelMedium)
         Text("Bitte direkt mit Finger oder Stift im Feld unterschreiben.", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
         Canvas(
             Modifier.fillMaxWidth().height(150.dp)
