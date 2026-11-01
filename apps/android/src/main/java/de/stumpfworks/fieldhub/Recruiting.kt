@@ -46,30 +46,40 @@ internal fun RecruitingScreen(workspaceId: String) {
 
     if (detail != null) {
         RecruitingDetailScreen(detail, onBack = { detailId = null }, onEdit = { editing = detail })
-    } else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
-        item { Column {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    } else Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("Recruiting", style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
             TextButton(onClick = { creating = true }) { Text("+ Kontakt") }
         }
-        Text("${contacts.size} Kontakte · nur auf diesem Gerät", color = Color.LightGray)
-        Spacer(Modifier.height(12.dp))
-        RecruitingDashboard(contacts, workspaceId = workspaceId, onFilterStatus = { selectedStatus = it }, onOpenContact = { detailId = it })
-        Spacer(Modifier.height(12.dp))
         OutlinedTextField(
-            value = search, onValueChange = { search = it }, label = { Text("Name, Telefon, E-Mail suchen") },
+            value = search, onValueChange = { search = it },
+            label = { Text("Kontakte suchen") },
             singleLine = true, modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(8.dp))
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             (listOf("Alle") + statuses).forEach { status ->
                 FilterChip(selected = selectedStatus == status, onClick = { selectedStatus = status }, label = { Text(status) })
             }
         }
-        Spacer(Modifier.height(12.dp))
-        RecruitingFollowupSummary(contacts, onOpenContact = { detailId = it })
-        Spacer(Modifier.height(12.dp))
-        } }
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            item {
+                Column {
+                    Text("${filtered.size} von ${contacts.size} Kontakten · nur auf diesem Gerät", color = Color.LightGray)
+                    Spacer(Modifier.height(12.dp))
+                    RecruitingDashboard(
+                        contacts, workspaceId = workspaceId,
+                        onFilterStatus = { selectedStatus = it },
+                        onOpenContact = { detailId = it }
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    RecruitingFollowupSummary(contacts, onOpenContact = { detailId = it })
+                    Spacer(Modifier.height(12.dp))
+                    Text("Kontaktliste", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                }
+            }
         items(filtered, key = { it.id }) { contact ->
                 Card(onClick = { detailId = contact.id }, colors = CardDefaults.cardColors(containerColor = recruitingPanel)) {
                     Column(Modifier.fillMaxWidth().padding(16.dp)) {
