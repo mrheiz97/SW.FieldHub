@@ -63,6 +63,9 @@ internal interface FieldHubDao {
     @Delete
     suspend fun deleteEvent(event: LocalEvent)
 
+    @Query("UPDATE local_events SET attendance = :status WHERE id = :eventId AND workspaceId = :workspaceId")
+    suspend fun setEventAttendance(eventId: String, workspaceId: String, status: String)
+
     @Query("SELECT * FROM local_tasks WHERE workspaceId = :workspaceId ORDER BY done ASC, title")
     fun tasks(workspaceId: String): Flow<List<LocalTask>>
 
