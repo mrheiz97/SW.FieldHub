@@ -1,6 +1,11 @@
 package de.stumpfworks.fieldhub
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -80,60 +85,136 @@ internal fun RecruitingScreen(workspaceId: String) {
         var status by remember(original?.id, creating) { mutableStateOf(original?.status ?: "Neu") }
         var consent by remember(original?.id, creating) { mutableStateOf(original?.consentToContact ?: false) }
         var confirmDelete by remember(original?.id, creating) { mutableStateOf(false) }
-        AlertDialog(
+        var statusExpanded by remember(original?.id, creating) { mutableStateOf(false) }
+        Dialog(
             onDismissRequest = { creating = false; editing = null },
-            title = { Text(if (original == null) "Kontakt aufnehmen" else "Kontakt bearbeiten") },
-            text = {
-                Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(name, { name = it }, label = { Text("Name *") }, singleLine = true)
-                    OutlinedTextField(phone, { phone = it }, label = { Text("Telefon") }, singleLine = true)
-                    OutlinedTextField(email, { email = it }, label = { Text("E-Mail") }, singleLine = true)
-                    OutlinedTextField(notes, { notes = it }, label = { Text("Notizen") }, minLines = 3)
-                    Text("Status", fontWeight = FontWeight.SemiBold)
-                    statuses.forEach { option ->
-                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                            RadioButton(selected = status == option, onClick = { status = option })
-                            Text(option, color = Color.White)
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.94f).widthIn(max = 540.dp).imePadding(),
+                shape = RoundedCornerShape(24.dp),
+                color = Color(0xFF1C2230),
+                tonalElevation = 6.dp
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (original == null) "Neuer Kontakt" else "Kontakt bearbeiten",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text("Recruiting · Kontaktdaten", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
+                        }
+                        TextButton(onClick = { creating = false; editing = null }) { Text("Schließen") }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Column(
+                        Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("PERSON", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        OutlinedTextField(
+                            value = name, onValueChange = { name = it },
+                            label = { Text("Name *") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = phone, onValueChange = { phone = it },
+                            label = { Text("Telefonnummer") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                        )
+                        OutlinedTextField(
+                            value = email, onValueChange = { email = it },
+                            label = { Text("E-Mail-Adresse") }, singleLine = true,
+                            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                        )
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.10f))
+                        Text("RECRUITING", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        ExposedDropdownMenuBox(
+                            expanded = statusExpanded,
+                            onExpandedChange = { statusExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = status, onValueChange = {},
+                                readOnly = true, label = { Text("Status") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded) },
+                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            ExposedDropdownMenu(
+                                expanded = statusExpanded,
+                                onDismissRequest = { statusExpanded = false }
+                            ) {
+                                statuses.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option) },
+                                        onClick = { status = option; statusExpanded = false }
+                                    )
+                                }
+                            }
+                        }
+                        OutlinedTextField(
+                            value = notes, onValueChange = { notes = it },
+                            label = { Text("Notizen") }, minLines = 2, maxLines = 4,
+                            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                        )
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.10f))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = consent, onCheckedChange = { consent = it })
+                            Column(Modifier.weight(1f)) {
+                                Text("Einwilligung zur Kontaktaufnahme", style = MaterialTheme.typography.bodyMedium)
+                                Text("Nur aktivieren, wenn sie tatsächlich vorliegt.", color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        if (original != null) {
+                            if (confirmDelete) {
+                                Text("Diesen Kontakt dauerhaft löschen?", color = Color(0xFFFFCC80))
+                                Row {
+                                    TextButton(onClick = {
+                                        scope.launch { dao.deleteContact(original) }
+                                        editing = null
+                                    }) { Text("Endgültig löschen") }
+                                    TextButton(onClick = { confirmDelete = false }) { Text("Behalten") }
+                                }
+                            } else {
+                                TextButton(onClick = { confirmDelete = true }) { Text("Kontakt löschen") }
+                            }
                         }
                     }
-                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Checkbox(checked = consent, onCheckedChange = { consent = it })
-                        Text("Einwilligung zur Kontaktaufnahme liegt vor", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Text("Nur bestätigen, wenn die Person tatsächlich zugestimmt hat. Einwilligung kann widerrufen werden.", style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
-                    if (original != null) {
-                        if (confirmDelete) {
-                            Text("Kontakt wirklich dauerhaft löschen?")
-                            TextButton(onClick = { scope.launch { dao.deleteContact(original) }; editing = null }) { Text("Ja, löschen") }
-                            TextButton(onClick = { confirmDelete = false }) { Text("Abbrechen") }
-                        } else {
-                            TextButton(onClick = { confirmDelete = true }) { Text("Kontakt löschen") }
-                        }
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.10f))
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedButton(
+                            onClick = { creating = false; editing = null },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Abbrechen") }
+                        Button(
+                            enabled = name.isNotBlank() && (phone.isNotBlank() || email.isNotBlank()),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                val now = System.currentTimeMillis()
+                                scope.launch {
+                                    dao.saveContact(
+                                        RecruitingContact(
+                                            id = original?.id ?: UUID.randomUUID().toString(),
+                                            workspaceId = workspaceId,
+                                            name = name.trim(), phone = phone.trim(), email = email.trim(),
+                                            notes = notes.trim(), status = status, consentToContact = consent,
+                                            consentRecordedAt = if (consent) original?.consentRecordedAt ?: now else null,
+                                            createdAt = original?.createdAt ?: now
+                                        )
+                                    )
+                                }
+                                creating = false
+                                editing = null
+                            }
+                        ) { Text("Speichern") }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = name.isNotBlank() && (phone.isNotBlank() || email.isNotBlank()),
-                    onClick = {
-                        val now = System.currentTimeMillis()
-                        scope.launch {
-                            dao.saveContact(
-                                RecruitingContact(
-                                    id = original?.id ?: UUID.randomUUID().toString(),
-                                    workspaceId = workspaceId,
-                                    name = name.trim(), phone = phone.trim(), email = email.trim(),
-                                    notes = notes.trim(), status = status, consentToContact = consent,
-                                    consentRecordedAt = if (consent) original?.consentRecordedAt ?: now else null,
-                                    createdAt = original?.createdAt ?: now
-                                )
-                            )
-                        }
-                        creating = false; editing = null
-                    }
-                ) { Text("Speichern") }
-            },
-            dismissButton = { TextButton(onClick = { creating = false; editing = null }) { Text("Schließen") } }
-        )
+            }
+        }
     }
 }
