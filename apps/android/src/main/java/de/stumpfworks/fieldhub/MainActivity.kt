@@ -2,6 +2,8 @@ package de.stumpfworks.fieldhub
 
 import android.os.Bundle
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -104,7 +106,7 @@ private fun FieldHubApp() {
                         Section.Today -> TodayScreen(selected)
                         Section.Events -> LocalEventsScreen(selected.id, selected.id != "ravens" || demoRole != DemoRole.Player)
                         Section.Recruiting -> RecruitingScreen(selected.id)
-                        Section.Team -> if (selected.id == "ravens" && demoRole != DemoRole.Player) CoachOverviewScreen() else PlaceholderScreen("Nicht verfügbar", "Dieser Bereich ist in der Demo nur für Trainer und Administratoren sichtbar.")
+                        Section.Team -> if (selected.id == "ravens" && demoRole != DemoRole.Player) LocalTrainingOverviewScreen(selected.id) else PlaceholderScreen("Nicht verfügbar", "Dieser Bereich ist in der Demo nur für Trainer und Administratoren sichtbar.")
                         Section.Tasks -> LocalTasksScreen(selected.id)
                         Section.Profile -> RoleProfileScreen(selected.id, demoRole) { newRole -> demoRole = newRole; section = Section.Today }
                     }
@@ -174,6 +176,27 @@ private fun TodayScreen(workspace: Workspace) {
     Text("Deine persönliche Übersicht", color = Color.LightGray)
     Spacer(Modifier.height(28.dp))
     if (workspace.id == "ravens") {
+        val context = LocalContext.current
+        val dao = remember(context) { FieldHubDatabase.get(context).dao() }
+        val scope = rememberCoroutineScope()
+        val localEvents by remember(dao, workspace.id) { dao.events(workspace.id) }.collectAsStateWithLifecycle(initialValue = emptyList())
+        val next = localEvents.filter { it.type.equals("Training", ignoreCase = true) && it.startAt >= System.currentTimeMillis() }
+            .minByOrNull { it.startAt }
+        if (next != null) {
+            Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(24.dp)) {
+                Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                    Text("Nächstes Training", color = Accent)
+                    Text(next.title, color = Color.White, style = MaterialTheme.typography.titleLarge)
+                    Text(next.scheduleLabel, color = Color.LightGray)
+                    Text(next.location, color = Color.LightGray)
+                    Text("Meine Rückmeldung: " + when (next.attendance) { "yes" -> "Dabei"; "no" -> "Abgesagt"; else -> "Offen" }, color = Color.LightGray)
+                    Row {
+                        TextButton(onClick = { scope.launch { dao.setEventAttendance(next.id, workspace.id, "yes") } }) { Text("Dabei") }
+                        TextButton(onClick = { scope.launch { dao.setEventAttendance(next.id, workspace.id, "no") } }) { Text("Absagen") }
+                    }
+                }
+            }
+        } else {
         DemoEventRepository.forWorkspace(workspace.id).firstOrNull { it.type == "Training" }?.let { event ->
             Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(24.dp)) {
                 Column(Modifier.fillMaxWidth().padding(20.dp)) {
@@ -185,6 +208,7 @@ private fun TodayScreen(workspace: Workspace) {
                     EventAttendanceControls(event)
                 }
             }
+        }
         }
     } else {
         Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(24.dp)) {
