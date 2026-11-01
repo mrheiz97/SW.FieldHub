@@ -2,6 +2,8 @@ package de.stumpfworks.fieldhub
 
 import android.content.Context
 import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "local_events", indices = [Index("workspaceId")])
@@ -25,8 +27,31 @@ internal data class LocalTask(
     val done: Boolean = false
 )
 
+@Entity(tableName = "recruiting_contacts", indices = [Index("workspaceId")])
+internal data class RecruitingContact(
+    @PrimaryKey val id: String,
+    val workspaceId: String,
+    val name: String,
+    val phone: String,
+    val email: String,
+    val notes: String,
+    val status: String,
+    val consentToContact: Boolean,
+    val consentRecordedAt: Long?,
+    val createdAt: Long
+)
+
 @Dao
 internal interface FieldHubDao {
+    @Query("SELECT * FROM recruiting_contacts WHERE workspaceId = :workspaceId ORDER BY createdAt DESC")
+    fun contacts(workspaceId: String): Flow<List<RecruitingContact>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun saveContact(contact: RecruitingContact)
+
+    @Delete
+    suspend fun deleteContact(contact: RecruitingContact)
+
     @Query("SELECT * FROM local_events WHERE workspaceId = :workspaceId ORDER BY scheduleLabel, title")
     fun events(workspaceId: String): Flow<List<LocalEvent>>
 
@@ -46,16 +71,35 @@ internal interface FieldHubDao {
     suspend fun deleteTask(task: LocalTask)
 }
 
-@Database(entities = [LocalEvent::class, LocalTask::class], version = 1, exportSchema = false)
+@Database(entities = [LocalEvent::class, LocalTask::class, RecruitingContact::class], version = 2, exportSchema = false)
 internal abstract class FieldHubDatabase : RoomDatabase() {
     abstract fun dao(): FieldHubDao
     companion object {
+        private val migration1to2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS recruiting_contacts (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        workspaceId TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        phone TEXT NOT NULL,
+                        email TEXT NOT NULL,
+                        notes TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        consentToContact INTEGER NOT NULL,
+                        consentRecordedAt INTEGER,
+                        createdAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_recruiting_contacts_workspaceId ON recruiting_contacts(workspaceId)")
+            }
+        }
         @Volatile private var instance: FieldHubDatabase? = null
         fun get(context: Context): FieldHubDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
                     context.applicationContext, FieldHubDatabase::class.java, "fieldhub-local.db"
-                ).build().also { instance = it }
+                ).addMigrations(migration1to2).build().also { instance = it }
             }
     }
 }
