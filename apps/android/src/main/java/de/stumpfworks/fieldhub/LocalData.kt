@@ -72,7 +72,7 @@ internal data class FormSubmission(
 
 @Dao
 internal interface FieldHubDao {
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveFormSubmission(submission: FormSubmission)
 
     @Query("SELECT * FROM form_submissions WHERE workspaceId = :workspaceId AND formId = :formId ORDER BY createdAt DESC")
