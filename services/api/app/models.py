@@ -27,7 +27,7 @@ class Form(Base):
     form_id: Mapped[str] = mapped_column(String(64))
     version: Mapped[int] = mapped_column(Integer)
     title: Mapped[str] = mapped_column(String(160))
-    schema: Mapped[dict] = mapped_column(JSON)
+    definition: Mapped[dict] = mapped_column("schema", JSON)
     published: Mapped[bool] = mapped_column(default=False)
 
 class Submission(Base):
