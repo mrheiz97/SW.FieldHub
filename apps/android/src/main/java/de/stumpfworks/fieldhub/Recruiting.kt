@@ -46,7 +46,8 @@ internal fun RecruitingScreen(workspaceId: String) {
 
     if (detail != null) {
         RecruitingDetailScreen(detail, onBack = { detailId = null }, onEdit = { editing = detail })
-    } else Column {
+    } else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize()) {
+        item { Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Recruiting", style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
             TextButton(onClick = { creating = true }) { Text("+ Kontakt") }
@@ -68,8 +69,8 @@ internal fun RecruitingScreen(workspaceId: String) {
         Spacer(Modifier.height(12.dp))
         RecruitingFollowupSummary(contacts, onOpenContact = { detailId = it })
         Spacer(Modifier.height(12.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(filtered, key = { it.id }) { contact ->
+        } }
+        items(filtered, key = { it.id }) { contact ->
                 Card(onClick = { detailId = contact.id }, colors = CardDefaults.cardColors(containerColor = recruitingPanel)) {
                     Column(Modifier.fillMaxWidth().padding(16.dp)) {
                         Text(contact.name, color = Color.White, style = MaterialTheme.typography.titleMedium)
@@ -81,8 +82,7 @@ internal fun RecruitingScreen(workspaceId: String) {
                     }
                 }
             }
-            if (filtered.isEmpty()) item { Text("Keine Kontakte gefunden. Lege deinen ersten Kontakt an.", color = Color.LightGray) }
-        }
+        if (filtered.isEmpty()) item { Text("Keine Kontakte gefunden. Prüfe Suche und Statusfilter.", color = Color.LightGray) }
     }
 
     if (creating || editing != null) {
