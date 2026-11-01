@@ -100,7 +100,7 @@ internal fun RecruitingScreen(workspaceId: String) {
         }
     }
 
-    if (formPreview) DynamicFormPreview(onDismiss = { formPreview = false })
+    if (formPreview) DynamicFormPreview(workspaceId = workspaceId, onDismiss = { formPreview = false })
 
     if (creating || editing != null) {
         val original = editing
