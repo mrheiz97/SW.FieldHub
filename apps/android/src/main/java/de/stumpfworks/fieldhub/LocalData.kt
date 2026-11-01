@@ -14,7 +14,9 @@ internal data class LocalEvent(
     val scheduleLabel: String,
     val location: String,
     val description: String,
-    val type: String
+    val type: String,
+    val startAt: Long = 0L,
+    val attendance: String = "unknown"
 )
 
 @Entity(tableName = "local_tasks", indices = [Index("workspaceId")])
