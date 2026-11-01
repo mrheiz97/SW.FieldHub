@@ -36,7 +36,37 @@
           "label": "Profil",
           "screen": "profile"
         }
-      ]
+      ],
+      "recruitingDashboard": {
+        "title": "Überblick",
+        "showPhases": true,
+        "metrics": [
+          {
+            "id": "total",
+            "label": "Kontakte",
+            "dataSource": "contacts.total",
+            "action": "filter.all"
+          },
+          {
+            "id": "interested",
+            "label": "Interessiert",
+            "dataSource": "contacts.interested",
+            "action": "filter.interested"
+          },
+          {
+            "id": "trial",
+            "label": "Probetraining",
+            "dataSource": "contacts.trial",
+            "action": "filter.trial"
+          },
+          {
+            "id": "due",
+            "label": "Fällige Rückrufe",
+            "dataSource": "followups.due",
+            "action": "open.due"
+          }
+        ]
+      }
     },
     {
       "id": "stumpfworks",
@@ -66,7 +96,37 @@
           "label": "Profil",
           "screen": "profile"
         }
-      ]
+      ],
+      "recruitingDashboard": {
+        "title": "Überblick",
+        "showPhases": true,
+        "metrics": [
+          {
+            "id": "total",
+            "label": "Kontakte",
+            "dataSource": "contacts.total",
+            "action": "filter.all"
+          },
+          {
+            "id": "interested",
+            "label": "Interessiert",
+            "dataSource": "contacts.interested",
+            "action": "filter.interested"
+          },
+          {
+            "id": "trial",
+            "label": "Probetraining",
+            "dataSource": "contacts.trial",
+            "action": "filter.trial"
+          },
+          {
+            "id": "due",
+            "label": "Fällige Rückrufe",
+            "dataSource": "followups.due",
+            "action": "open.due"
+          }
+        ]
+      }
     },
     {
       "id": "sales",
@@ -96,7 +156,37 @@
           "label": "Profil",
           "screen": "profile"
         }
-      ]
+      ],
+      "recruitingDashboard": {
+        "title": "Überblick",
+        "showPhases": true,
+        "metrics": [
+          {
+            "id": "total",
+            "label": "Kontakte",
+            "dataSource": "contacts.total",
+            "action": "filter.all"
+          },
+          {
+            "id": "interested",
+            "label": "Interessiert",
+            "dataSource": "contacts.interested",
+            "action": "filter.interested"
+          },
+          {
+            "id": "trial",
+            "label": "Probetraining",
+            "dataSource": "contacts.trial",
+            "action": "filter.trial"
+          },
+          {
+            "id": "due",
+            "label": "Fällige Rückrufe",
+            "dataSource": "followups.due",
+            "action": "open.due"
+          }
+        ]
+      }
     }
   ]
 }
