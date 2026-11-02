@@ -17,10 +17,10 @@ From the repository root:
 ```powershell
 git pull --ff-only
 docker compose --env-file .env -f deploy/docker/compose.yaml up -d --build api
-docker compose --env-file .env -f deploy/docker/compose.yaml exec api pytest -q
+docker compose --env-file .env -f deploy/docker/compose.yaml run --rm -v "${PWD}/services/api/tests:/srv/tests:ro" api pytest -q
 ```
 
-If the image does not include test files, run `cd services/api; python -m pytest -q` in a Python environment with `requirements.txt` installed.
+The production image intentionally does not include test files. The command above mounts the tests read-only. Alternatively run `cd services/api; python -m pytest -q` in a Python environment with `requirements.txt` installed.
 
 ## Not yet verified
 
