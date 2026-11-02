@@ -11,16 +11,18 @@ small{color:#a9a2bc}input{box-sizing:border-box;background:#12111c;color:#fff;bo
 </style></head><body><main>
 <h1>stumpf<span>WORKS</span> FieldHub</h1>
 <p>Lokaler OIDC-Anmeldetest mit Keycloak. Nach der Anmeldung werden deine serverseitig freigegebenen Workspaces angezeigt.</p>
-<button id="login">Mit Keycloak anmelden</button><button class="secondary" id="logout">Lokale Sitzung löschen</button>
+<button id="login">Mit Keycloak anmelden</button><button class="secondary" id="logout">Bei Keycloak abmelden</button>
 <p id="status" role="status">Nicht angemeldet.</p><pre id="result" hidden></pre>
-<section id="admin" class="panel" hidden><h2>Workspace-Verwaltung</h2><label for="workspace">Workspace</label><select id="workspace"></select><div id="workspaceEdit"><label for="workspaceName">Workspace-Name</label><input id="workspaceName" maxlength="160"><button id="rename">Namen speichern</button></div><h3>Mitglieder</h3><div id="members"></div><h3>Mitglied hinzufügen / bearbeiten</h3><label for="subject">Keycloak-Subject-ID (sub)</label><input id="subject" maxlength="255" autocomplete="off" placeholder="UUID aus Keycloak"><div class="checks" id="permissions"></div><button id="saveMember">Mitglied speichern</button><p class="muted" id="adminStatus" role="status"></p></section><small>Nur für lokale Demo-Daten. Keine Tokens oder Passwörter weitergeben. Änderungen werden in PostgreSQL gespeichert.</small>
+<section id="profile" class="panel" hidden><h2>Mein Profil</h2><label for="displayName">Anzeigename</label><input id="displayName" maxlength="160"><button id="saveProfile">Profil speichern</button><p id="profileStatus" class="muted" role="status"></p></section>
+<section id="admin" class="panel" hidden><h2>Workspace-Verwaltung</h2><label for="workspace">Workspace</label><select id="workspace"></select><div id="workspaceEdit"><label for="workspaceName">Workspace-Name</label><input id="workspaceName" maxlength="160"><button id="rename">Namen speichern</button></div><h3>Mitglieder</h3><div id="members"></div><h3>Mitglied bearbeiten</h3><label for="targetUser">FieldHub-Benutzer-ID</label><input id="targetUser" maxlength="36" autocomplete="off" placeholder="Mitglied oben auswählen" readonly><div class="checks" id="permissions"></div><button id="saveMember">Berechtigungen speichern</button><p class="muted" id="adminStatus" role="status"></p></section><small>Nur für lokale Demo-Daten. Keine Tokens oder Passwörter weitergeben. Änderungen werden in PostgreSQL gespeichert.</small>
 </main><script>
 "use strict";
 const redirect="http://127.0.0.1:8000/dev/login";
 const issuer="http://localhost:8080/realms/fieldhub";
 const result=document.getElementById("result"), status=document.getElementById("status");
 let accessToken=null;
-let mySubject=null;
+let idToken=null;
+let myUserId=null;
 const allowedPermissions=["forms.read","forms.submissions.read","forms.submissions.write","sync.write","workspace.manage"];
 const adminPanel=document.getElementById("admin"),adminStatus=document.getElementById("adminStatus"),workspaceSelect=document.getElementById("workspace");
 const checks=document.getElementById("permissions");
@@ -30,11 +32,68 @@ function setPermissions(values){for(const el of checks.querySelectorAll("input")
 function selectedWorkspace(){return workspaceSelect.value}
 async function api(path,method="GET",body){if(!accessToken)throw Error("Bitte erneut anmelden");const response=await fetch(path,{method,headers:{"Authorization":"Bearer "+accessToken,...(body===undefined?{}:{"Content-Type":"application/json"})},body:body===undefined?undefined:JSON.stringify(body),cache:"no-store"});if(!response.ok)throw Error("API "+response.status+": "+(await response.text()).slice(0,200));return response.status===204?null:response.json()}
 function report(error){adminStatus.textContent=error instanceof Error?error.message:String(error)}
-async function loadMembers(){const id=selectedWorkspace();if(!id)return;const meta=await api("/v1/workspaces/"+encodeURIComponent(id)+"/admin");document.getElementById("workspaceName").value=meta.name;const data=await api("/v1/workspaces/"+encodeURIComponent(id)+"/members");const list=document.getElementById("members");list.replaceChildren();for(const member of data.items){const row=document.createElement("div");row.className="member";const info=document.createElement("div");const code=document.createElement("code");code.textContent=member.subject+(member.subject===mySubject?" (du)":"");const summary=document.createElement("div");summary.className="muted";summary.textContent=member.permissions.join(", ")||"Keine Rechte";info.append(code,summary);const edit=document.createElement("button");edit.className="secondary";edit.textContent="Bearbeiten";edit.disabled=member.subject===mySubject;edit.onclick=()=>{document.getElementById("subject").value=member.subject;setPermissions(member.permissions);document.getElementById("subject").focus()};const del=document.createElement("button");del.className="secondary";del.textContent="Entfernen";del.disabled=member.subject===mySubject;del.onclick=async()=>{if(!confirm("Mitglied aus diesem Workspace entfernen?"))return;try{await api("/v1/workspaces/"+encodeURIComponent(id)+"/members/"+encodeURIComponent(member.subject),"DELETE");await loadMembers();adminStatus.textContent="Mitglied entfernt"}catch(e){report(e)}};row.append(info,edit,del);list.append(row)}if(!data.items.length)list.textContent="Noch keine Mitglieder."}
-async function showAdmin(data){mySubject=data.user.id;const managed=data.workspaces.filter(w=>w.permissions.includes("workspace.manage"));workspaceSelect.replaceChildren();for(const w of managed){const option=document.createElement("option");option.value=w.id;option.textContent=w.name;workspaceSelect.append(option)}adminPanel.hidden=!managed.length;if(managed.length)await loadMembers()}
+async function loadMembers(){
+ const id=selectedWorkspace();if(!id)return;
+ const meta=await api("/v1/workspaces/"+encodeURIComponent(id)+"/admin");
+ document.getElementById("workspaceName").value=meta.name;
+ const data=await api("/v1/workspaces/"+encodeURIComponent(id)+"/users");
+ const list=document.getElementById("members");list.replaceChildren();
+ for(const member of data.items){
+  const row=document.createElement("div");row.className="member";
+  const info=document.createElement("div");
+  const name=document.createElement("strong");name.textContent=member.displayName+(member.userId===myUserId?" (du)":"");
+  const code=document.createElement("code");code.textContent=member.userId;
+  const summary=document.createElement("div");summary.className="muted";summary.textContent=member.permissions.join(", ")||"Keine Rechte";
+  info.append(name,document.createElement("br"),code,summary);
+  const edit=document.createElement("button");edit.className="secondary";edit.textContent="Bearbeiten";edit.disabled=member.userId===myUserId;
+  edit.onclick=()=>{document.getElementById("targetUser").value=member.userId;setPermissions(member.permissions);document.getElementById("saveMember").focus()};
+  const del=document.createElement("button");del.className="secondary";del.textContent="Entfernen";del.disabled=member.userId===myUserId;
+  del.onclick=async()=>{if(!confirm("Mitglied aus diesem Workspace entfernen?"))return;try{await api("/v1/workspaces/"+encodeURIComponent(id)+"/users/"+encodeURIComponent(member.userId),"DELETE");await loadMembers();adminStatus.textContent="Mitglied entfernt"}catch(e){report(e)}};
+  row.append(info,edit,del);list.append(row);
+ }
+ if(!data.items.length)list.textContent="Noch keine Mitglieder.";
+}
+async function showAdmin(data){
+ myUserId=data.user.id;
+ const managed=data.workspaces.filter(w=>w.permissions.includes("workspace.manage"));
+ workspaceSelect.replaceChildren();
+ for(const w of managed){const option=document.createElement("option");option.value=w.id;option.textContent=w.name;workspaceSelect.append(option)}
+ adminPanel.hidden=!managed.length;
+ if(managed.length)await loadMembers();
+}
+async function loadProfile(){
+ const me=await api("/v1/users/me");
+ document.getElementById("profile").hidden=false;
+ document.getElementById("displayName").value=me.displayName;
+}
+document.getElementById("saveProfile").onclick=async()=>{
+ try{
+  const name=document.getElementById("displayName").value.trim();
+  if(!name)throw Error("Anzeigename fehlt");
+  await api("/v1/users/me","PATCH",{displayName:name});
+  const data=await api("/v1/bootstrap");
+  result.textContent=JSON.stringify(data,null,2);
+  await showAdmin(data);
+  document.getElementById("profileStatus").textContent="Profil gespeichert";
+ }catch(e){document.getElementById("profileStatus").textContent=e.message}
+};
 workspaceSelect.onchange=()=>loadMembers().catch(report);
-document.getElementById("rename").onclick=async()=>{try{const id=selectedWorkspace(),name=document.getElementById("workspaceName").value.trim();if(!name)throw Error("Bitte einen Namen eingeben");await api("/v1/workspaces/"+encodeURIComponent(id)+"/admin","PATCH",{name});adminStatus.textContent="Workspace umbenannt";await loadMembers()}catch(e){report(e)}};
-document.getElementById("saveMember").onclick=async()=>{try{const subject=document.getElementById("subject").value.trim();if(!/^[a-zA-Z0-9_.:@-]{1,255}$/.test(subject))throw Error("Ungültige Subject-ID");if(subject===mySubject)throw Error("Eigene Rechte können hier nicht verändert werden");await api("/v1/workspaces/"+encodeURIComponent(selectedWorkspace())+"/members/"+encodeURIComponent(subject),"PUT",{permissions:selectedPermissions()});document.getElementById("subject").value="";setPermissions([]);adminStatus.textContent="Mitglied gespeichert";await loadMembers()}catch(e){report(e)}};
+document.getElementById("rename").onclick=async()=>{
+ try{const id=selectedWorkspace(),name=document.getElementById("workspaceName").value.trim();
+ if(!name)throw Error("Bitte einen Namen eingeben");
+ await api("/v1/workspaces/"+encodeURIComponent(id)+"/admin","PATCH",{name});
+ adminStatus.textContent="Workspace umbenannt";await loadMembers()}catch(e){report(e)}
+};
+document.getElementById("saveMember").onclick=async()=>{
+ try{
+  const target=document.getElementById("targetUser").value;
+  if(!target)throw Error("Bitte zuerst ein Mitglied auswählen");
+  if(target===myUserId)throw Error("Eigene Rechte können hier nicht verändert werden");
+  await api("/v1/workspaces/"+encodeURIComponent(selectedWorkspace())+"/users/"+encodeURIComponent(target),"PUT",{permissions:selectedPermissions()});
+  document.getElementById("targetUser").value="";setPermissions([]);
+  adminStatus.textContent="Berechtigungen gespeichert";await loadMembers();
+ }catch(e){report(e)}
+};
 const enc=new TextEncoder();
 function b64(bytes){return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
 function randomString(n){return b64(crypto.getRandomValues(new Uint8Array(n)))}
@@ -57,15 +116,26 @@ async function callback(){
  if(u.searchParams.get("state")!==state)throw Error("Ungültiger OAuth state");
  const response=await fetch("/dev/token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code,verifier}),cache:"no-store"});
  if(!response.ok)throw Error("Token-Austausch fehlgeschlagen (HTTP "+response.status+")");
- accessToken=(await response.json()).access_token;
+ const tokens=await response.json();accessToken=tokens.access_token;idToken=tokens.id_token||null;
  const bootstrap=await fetch("/v1/bootstrap",{headers:{Authorization:"Bearer "+accessToken},cache:"no-store"});
  if(!bootstrap.ok)throw Error("FieldHub API: HTTP "+bootstrap.status+" – Audience/Issuer prüfen");
  const data=await bootstrap.json();
  status.textContent="Anmeldung erfolgreich – "+data.workspaces.length+" Workspace(s) freigegeben";
  result.hidden=false;result.textContent=JSON.stringify(data,null,2);
+ await loadProfile();
  await showAdmin(data);
 }
 document.getElementById("login").onclick=()=>login().catch(e=>status.textContent=e.message);
-document.getElementById("logout").onclick=()=>{accessToken=null;mySubject=null;adminPanel.hidden=true;sessionStorage.removeItem("fh_pkce");result.hidden=true;status.textContent="Lokale Sitzung gelöscht. (Keycloak-Sitzung bleibt bestehen.)"};
+document.getElementById("logout").onclick=()=>{
+ const hint=idToken;accessToken=null;idToken=null;myUserId=null;
+ adminPanel.hidden=true;document.getElementById("profile").hidden=true;
+ sessionStorage.removeItem("fh_pkce");result.hidden=true;
+ status.textContent="Abmeldung bei Keycloak wird gestartet …";
+ const url=new URL(issuer+"/protocol/openid-connect/logout");
+ url.searchParams.set("client_id","fieldhub-web-dev");
+ url.searchParams.set("post_logout_redirect_uri",redirect);
+ if(hint)url.searchParams.set("id_token_hint",hint);
+ location.assign(url.toString());
+};
 callback().catch(e=>{status.textContent=e.message;result.hidden=true});
 </script></body></html>
