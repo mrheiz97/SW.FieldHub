@@ -12,3 +12,10 @@ def admin_script(request: Request):
     return FileResponse(Path(__file__).with_name("fieldhub_admin.js"),
                         media_type="text/javascript",
                         headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+@router.get("/fieldhub-responsive.css")
+def responsive_styles(request: Request):
+    require_local(request)
+    return FileResponse(Path(__file__).with_name("fieldhub_responsive.css"),
+                        media_type="text/css",
+                        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
