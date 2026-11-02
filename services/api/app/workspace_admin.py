@@ -48,7 +48,10 @@ def get_workspace(workspace_id: str, user_id: str = Depends(current_user_id),
 @router.patch("/{workspace_id}/admin")
 def update_workspace(workspace_id: str, body: WorkspaceUpdate,
                      user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
-    workspace = admin(db, workspace_id, user_id)
+    admin(db, workspace_id, user_id)
+    lock_workspace(db, workspace_id)
+    require_permission(workspace_id, "workspace.manage", user_id, db)
+    workspace = workspace_or_404(db, workspace_id)
     workspace.name = body.name.strip()
     if not workspace.name:
         raise HTTPException(422, "Workspace name required")
