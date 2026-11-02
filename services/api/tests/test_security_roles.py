@@ -143,3 +143,14 @@ def test_workspace_rename_requires_management_permission(env):
     assert allowed.json()["name"] == "Ravens RFC"
     actor["id"] = SECOND
     assert client.get("/v1/workspaces/ravens/admin").status_code == 403
+
+def test_form_list_does_not_mix_workspaces(env):
+    client, actor, engine = env
+    with Session(engine) as db:
+        db.add(Form(workspace_id="ravens", form_id="r1", version=1, title="R", definition={}, published=True))
+        db.add(Form(workspace_id="other", form_id="o1", version=1, title="O", definition={}, published=True))
+        db.commit()
+    result = client.get("/v1/workspaces/ravens/forms")
+    assert result.status_code == 200
+    assert [item["id"] for item in result.json()["items"]] == ["r1"]
+    assert client.get("/v1/workspaces/ravens/forms/o1").status_code == 404
