@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import jwt
+from cryptography.hazmat.primitives.asymmetric import rsa
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -75,3 +76,55 @@ def test_revoked_invitation_cannot_be_claimed(env):
     actor["id"] = THIRD
     claim = client.post("/v1/invitations/claim", json={"token": invitation["token"]})
     assert claim.status_code == 400
+
+@pytest.fixture
+def signed_oidc(monkeypatch):
+    """Real RSA signatures and claim verification; JWKS lookup is stubbed."""
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public = private.public_key()
+    class SigningKey:
+        key = public
+    class JWKS:
+        def get_signing_key_from_jwt(self, token):
+            return SigningKey()
+    monkeypatch.setattr(security, "jwks_client", lambda: JWKS())
+    monkeypatch.setattr(security.settings, "oidc_issuer", "https://issuer.example")
+    monkeypatch.setattr(security.settings, "oidc_audience", "fieldhub-api")
+    def issue(**overrides):
+        claims = {
+            "sub": "test-user",
+            "iss": "https://issuer.example",
+            "aud": "fieldhub-api",
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+        }
+        claims.update(overrides)
+        return jwt.encode(claims, private, algorithm="RS256")
+    return issue
+
+def test_oidc_accepts_valid_rs256_signature(signed_oidc):
+    assert security.validate_oidc_token(signed_oidc()) == "test-user"
+
+def test_oidc_rejects_expired_rs256_signature(signed_oidc):
+    token = signed_oidc(exp=datetime.now(timezone.utc) - timedelta(minutes=1))
+    with pytest.raises(HTTPException) as error:
+        security.validate_oidc_token(token)
+    assert error.value.status_code == 401
+
+def test_oidc_rejects_wrong_issuer_rs256(signed_oidc):
+    with pytest.raises(HTTPException) as error:
+        security.validate_oidc_token(signed_oidc(iss="https://attacker.example"))
+    assert error.value.status_code == 401
+
+def test_oidc_rejects_wrong_audience_rs256(signed_oidc):
+    with pytest.raises(HTTPException) as error:
+        security.validate_oidc_token(signed_oidc(aud="different-api"))
+    assert error.value.status_code == 401
+
+def test_oidc_rejects_tampered_rs256_signature(signed_oidc):
+    token = signed_oidc()
+    header, payload, signature = token.split(".")
+    changed = ("A" if signature[-1] != "A" else "B")
+    with pytest.raises(HTTPException) as error:
+        security.validate_oidc_token(header + "." + payload + "." + signature[:-1] + changed)
+    assert error.value.status_code == 401
