@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     oidc_issuer: str
     oidc_audience: str
     oidc_jwks_url: str
+    local_dev_http_jwks: bool = False
     model_config = SettingsConfigDict(env_prefix="FIELDHUB_", extra="ignore")
 
 settings = Settings()
