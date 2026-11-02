@@ -40,7 +40,7 @@ services:
     restart: unless-stopped
     environment:
       BFF_OIDC_ISSUER: ${FIELDHUB_OIDC_ISSUER:?Set OIDC issuer}
-      BFF_OIDC_TOKEN_URL: ${FIELDHUB_BFF_TOKEN_URL:-http://host.docker.internal:8080/realms/fieldhub/protocol/openid-connect/token}
+      BFF_OIDC_TOKEN_URL: ${FIELDHUB_BFF_TOKEN_URL:-http://keycloak:8080/realms/fieldhub/protocol/openid-connect/token}
       BFF_OIDC_CLIENT_ID: fieldhub-web-dev
       BFF_REDIRECT_URI: http://127.0.0.1:8090/auth/callback
       BFF_SECURE_COOKIES: "false"
