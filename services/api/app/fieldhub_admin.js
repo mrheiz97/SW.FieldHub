@@ -28,10 +28,10 @@ async function fhEditRole(role){
  const {d,form}=fhDialog(role?"Rolle bearbeiten":"Neue Rolle");
  const name=fhField("Rollenname",role?.name,100),description=fhField("Beschreibung",role?.description,500);
  const permissions=fhCheckList(role?.permissions||[]);form.append(name.wrap,description.wrap,el("p","Berechtigungen","small"),permissions);
- const save=async()=>{saveButton.disabled=true;try{const body={name:name.input.value.trim(),description:description.input.value.trim(),permissions:fhChecked(permissions)};if(!body.name)throw Error("Bitte einen Rollennamen eingeben.");await api(fhRoot()+"/roles"+(role?"/"+encodeURIComponent(role.id):""),role?"PUT":"POST",body);d.close();await fhRenderRoles()}catch(e){fhAlert(e.message);saveButton.disabled=false}};
+ const save=async()=>{saveButton.disabled=true;try{const body={name:name.input.value.trim(),description:description.input.value.trim(),permissions:fhChecked(permissions)};if(!body.name)throw Error("Bitte einen Rollennamen eingeben.");await api(fhRoot()+"/roles"+(role?"/"+encodeURIComponent(role.id):""),role?"PUT":"POST",body);d.close();await fhRenderRoles();window.fhNotify?.("Rolle gespeichert.")}catch(e){fhAlert(e.message);saveButton.disabled=false}};
  const saveButton=fhActions(form,save);d.showModal();name.input.focus();
 }
-async function fhDeleteRole(role){if(!confirm('Rolle "'+role.name+'" wirklich löschen?'))return;try{await fhRequestDelete(fhRoot()+"/roles/"+encodeURIComponent(role.id));await fhRenderRoles()}catch(e){fhAlert(e.message)}}
+async function fhDeleteRole(role){if(!confirm('Rolle "'+role.name+'" wirklich löschen?'))return;try{await fhRequestDelete(fhRoot()+"/roles/"+encodeURIComponent(role.id));await fhRenderRoles();window.fhNotify?.("Rolle gelöscht.")}catch(e){fhAlert(e.message)}}
 async function fhRequestDelete(path){const response=await fetch(path,{method:"DELETE",headers:{Authorization:"Bearer "+token},cache:"no-store"});if(!response.ok)throw Error("API "+response.status+": "+(await response.text()).slice(0,180))}
 
 async function fhRenderMembers(){
@@ -51,7 +51,7 @@ async function fhEditMember(member){
  const {d,form}=fhDialog("Berechtigungen: "+member.displayName);
  form.append(el("p","Direkte Berechtigungen des Mitglieds","small"));
  const checks=fhCheckList(member.permissions||[]);form.append(checks);
- const save=async()=>{saveButton.disabled=true;try{await api(fhRoot()+"/users/"+encodeURIComponent(member.userId),"PUT",{permissions:fhChecked(checks)});d.close();await fhRenderMembers()}catch(e){fhAlert(e.message);saveButton.disabled=false}};
+ const save=async()=>{saveButton.disabled=true;try{await api(fhRoot()+"/users/"+encodeURIComponent(member.userId),"PUT",{permissions:fhChecked(checks)});d.close();await fhRenderMembers();window.fhNotify?.("Mitglied aktualisiert.")}catch(e){fhAlert(e.message);saveButton.disabled=false}};
  const saveButton=fhActions(form,save);d.showModal();
 }
 async function fhMemberRoles(member){
