@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FieldHub – lokaler Login-Test</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif}body{margin:0;background:#101017;color:#eee;min-height:100vh;display:grid;place-items:center}
+main{width:min(560px,calc(100% - 48px));background:#1c1b27;border:1px solid #383447;border-radius:24px;padding:32px;box-shadow:0 18px 65px #0005}
+h1{margin:0 0 6px;font-size:30px;letter-spacing:-1px}h1 span{color:#b8a0ff}p{color:#bbb7cc;line-height:1.5}
+button{background:#9b7df3;color:#110b22;border:0;padding:12px 20px;border-radius:12px;font-weight:700;cursor:pointer;margin:6px 8px 6px 0}
+button.secondary{background:#343040;color:#eee}pre{white-space:pre-wrap;word-break:break-word;background:#101017;padding:16px;border-radius:12px;max-height:350px;overflow:auto;font-size:13px}
+small{color:#a9a2bc}
+</style></head><body><main>
+<h1>stumpf<span>WORKS</span> FieldHub</h1>
+<p>Lokaler OIDC-Anmeldetest mit Keycloak. Nach der Anmeldung werden deine serverseitig freigegebenen Workspaces angezeigt.</p>
+<button id="login">Mit Keycloak anmelden</button><button class="secondary" id="logout">Lokale Sitzung löschen</button>
+<p id="status" role="status">Nicht angemeldet.</p><pre id="result" hidden></pre>
+<small>Nur für lokale Demo-Daten. Keine Tokens oder Passwörter weitergeben.</small>
+</main><script>
+"use strict";
+const redirect="http://127.0.0.1:8000/dev/login";
+const issuer="http://localhost:8080/realms/fieldhub";
+const result=document.getElementById("result"), status=document.getElementById("status");
+let accessToken=null;
+const enc=new TextEncoder();
+function b64(bytes){return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+function randomString(n){return b64(crypto.getRandomValues(new Uint8Array(n)))}
+async function login(){
+ const verifier=randomString(32),state=randomString(24);
+ const challenge=b64(new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(verifier))));
+ sessionStorage.setItem("fh_pkce",JSON.stringify({verifier,state}));
+ const u=new URL(issuer+"/protocol/openid-connect/auth");
+ for(const [k,v] of Object.entries({client_id:"fieldhub-web-dev",response_type:"code",scope:"openid profile",redirect_uri:redirect,code_challenge:challenge,code_challenge_method:"S256",state}))u.searchParams.set(k,v);
+ location.assign(u.toString());
+}
+async function callback(){
+ const u=new URL(location.href),code=u.searchParams.get("code"),error=u.searchParams.get("error");
+ if(!code&&!error)return;
+ history.replaceState(null,"",redirect);
+ const saved=sessionStorage.getItem("fh_pkce");sessionStorage.removeItem("fh_pkce");
+ if(error)throw Error("Keycloak: "+error);
+ if(!saved)throw Error("Anmeldeversuch abgelaufen");
+ const {state,verifier}=JSON.parse(saved);
+ if(u.searchParams.get("state")!==state)throw Error("Ungültiger OAuth state");
+ const response=await fetch("/dev/token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code,verifier}),cache:"no-store"});
+ if(!response.ok)throw Error("Token-Austausch fehlgeschlagen (HTTP "+response.status+")");
+ accessToken=(await response.json()).access_token;
+ const bootstrap=await fetch("/v1/bootstrap",{headers:{Authorization:"Bearer "+accessToken},cache:"no-store"});
+ if(!bootstrap.ok)throw Error("FieldHub API: HTTP "+bootstrap.status+" – Audience/Issuer prüfen");
+ const data=await bootstrap.json();
+ status.textContent="Anmeldung erfolgreich – "+data.workspaces.length+" Workspace(s) freigegeben";
+ result.hidden=false;result.textContent=JSON.stringify(data,null,2);
+}
+document.getElementById("login").onclick=()=>login().catch(e=>status.textContent=e.message);
+document.getElementById("logout").onclick=()=>{accessToken=null;sessionStorage.removeItem("fh_pkce");result.hidden=true;status.textContent="Lokale Sitzung gelöscht. (Keycloak-Sitzung bleibt bestehen.)"};
+callback().catch(e=>{status.textContent=e.message;result.hidden=true});
+</script></body></html>
