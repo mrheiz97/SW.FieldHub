@@ -8,6 +8,7 @@ from .database import get_db
 from .models import Workspace, Membership, Form, Submission, User
 from .security import current_user_id, require_permission, effective_permissions
 from .module_registry import visible_modules
+from .workspace_modules import router as workspace_modules_router, enabled_modules
 
 from .dev_login import router as dev_login_router
 from .workspace_admin import router as workspace_admin_router
@@ -24,6 +25,7 @@ app.include_router(users_router)
 app.include_router(workspace_users_router)
 app.include_router(invitations_router)
 app.include_router(roles_router)
+app.include_router(workspace_modules_router)
 
 class SubmissionWrite(BaseModel):
     formVersion: int = Field(ge=1)
