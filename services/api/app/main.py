@@ -8,7 +8,11 @@ from .database import get_db
 from .models import Workspace, Membership, Form, Submission
 from .security import current_subject, require_permission
 
+from .dev_login import router as dev_login_router
+
 app = FastAPI(title="StumpfWorks FieldHub API", version="0.18.0")
+
+app.include_router(dev_login_router)
 
 class SubmissionWrite(BaseModel):
     formVersion: int = Field(ge=1)
