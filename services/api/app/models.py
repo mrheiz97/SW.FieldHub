@@ -71,3 +71,18 @@ class WorkspaceInvitation(Base):
     claimed_by: Mapped[str | None] = mapped_column(Uuid(as_uuid=False), ForeignKey("users.id"), nullable=True)
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+class WorkspaceRole(Base):
+    __tablename__ = "workspace_roles"
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(String(500), default="")
+    permissions: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+class WorkspaceRoleAssignment(Base):
+    __tablename__ = "workspace_role_assignments"
+    workspace_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    role_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("workspace_roles.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
