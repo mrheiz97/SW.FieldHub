@@ -52,9 +52,12 @@ def current_user_id(subject: str = Depends(current_subject), db: Session = Depen
     from sqlalchemy.exc import IntegrityError
     from uuid import uuid4
     user_id = str(uuid4())
-    db.add(User(id=user_id))
-    db.add(ExternalIdentity(user_id=user_id, issuer=settings.oidc_issuer, subject=subject))
     try:
+        db.add(User(id=user_id))
+        # Flush parent first: there is no ORM relationship defining insert order.
+        # Otherwise the external identity can violate its users(id) foreign key.
+        db.flush()
+        db.add(ExternalIdentity(user_id=user_id, issuer=settings.oidc_issuer, subject=subject))
         db.commit()
         return user_id
     except IntegrityError:
