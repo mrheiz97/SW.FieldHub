@@ -27,3 +27,16 @@ The production image intentionally does not include test files. The command abov
 These tests have been committed but **have not been executed in the user's PostgreSQL environment**. They use SQLite for quick endpoint regression checks; PostgreSQL integration tests must additionally exercise simultaneous updates and transaction ordering. A full production security review also requires review of Keycloak configuration, authentication provider routing, OIDC token lifecycle, rate limiting for invitation claims, logging, dependency vulnerability scanning, TLS, CORS/CSRF policies, backup/restore and deployment configuration.
 
 Do not treat this version as audited or production-hardened yet.
+
+## Phase 2: authentication and invitation regression checks
+
+Added `services/api/tests/test_security_auth_invitations.py` covering:
+- Expired OIDC JWT rejected
+- JWT for the wrong audience rejected
+- Invitation grants restricted to the issuer's effective permissions
+- Invitation token hash storage and non-disclosure in listings
+- Revoked invitation cannot be claimed
+
+These are isolated tests, **not** a real Keycloak integration test. The token tests mock the JWKS key and use intentionally unsupported HS256 tokens to assert rejection. PostgreSQL concurrency and real signed-token integration remain pending.
+
+Run the same read-only mounted pytest command after `git pull --ff-only`.
