@@ -5,7 +5,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .database import get_db
-from .models import Membership, Workspace
+from .models import Membership, Workspace, ExternalIdentity
+from .config import settings
 from .security import current_subject, require_permission
 
 router = APIRouter(prefix="/v1/workspaces", tags=["Workspace administration"])
@@ -74,8 +75,13 @@ def put_member(workspace_id: str, member_subject: str, body: MembershipWrite,
     item = db.scalar(select(Membership).where(
         Membership.workspace_id == workspace_id, Membership.subject == member_subject))
     if item is None:
+        identity = db.scalar(select(ExternalIdentity).where(
+            ExternalIdentity.issuer == settings.oidc_issuer,
+            ExternalIdentity.subject == member_subject))
+        if identity is None:
+            raise HTTPException(404, "Identity not registered; user must sign in first")
         item = Membership(workspace_id=workspace_id, subject=member_subject,
-                          permissions=list(body.permissions))
+                          user_id=identity.user_id, permissions=list(body.permissions))
         db.add(item)
     else:
         item.permissions = list(body.permissions)
