@@ -154,3 +154,17 @@ def test_form_list_does_not_mix_workspaces(env):
     assert result.status_code == 200
     assert [item["id"] for item in result.json()["items"]] == ["r1"]
     assert client.get("/v1/workspaces/ravens/forms/o1").status_code == 404
+
+def test_submission_list_is_workspace_scoped(env):
+    client, actor, engine = env
+    with Session(engine) as db:
+        member = db.query(Membership).filter_by(workspace_id="ravens", user_id=ADMIN).one()
+        member.permissions = ["workspace.manage", "forms.read", "forms.submissions.read"]
+        db.add(Submission(id="r1", workspace_id="ravens", form_id="shared", form_version=1, values={"origin": "r"}, revision=1))
+        db.add(Submission(id="o1", workspace_id="other", form_id="shared", form_version=1, values={"origin": "o"}, revision=1))
+        db.commit()
+    response = client.get("/v1/workspaces/ravens/forms/shared/submissions")
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()["items"]] == ["r1"]
+    actor["id"] = SECOND
+    assert client.get("/v1/workspaces/ravens/forms/shared/submissions").status_code == 403
