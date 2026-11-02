@@ -34,6 +34,8 @@ def validate_oidc_token(token: str) -> str:
         if not isinstance(subject, str) or not subject:
             raise ValueError("Missing subject")
         return subject
+    except jwt.PyJWKClientConnectionError as exc:
+        raise HTTPException(status_code=503, detail="Authentication key service unavailable") from exc
     except (jwt.PyJWTError, ValueError) as exc:
         raise HTTPException(status_code=401, detail="Invalid access token") from exc
 
