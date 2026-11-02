@@ -261,3 +261,19 @@ def test_web_preview_requires_local_host(env):
         assert "no-store" in response.headers["cache-control"]
     finally:
         settings.local_dev_login = previous
+
+def test_web_admin_script_is_local_only(env):
+    client, actor, engine = env
+    from app.config import settings
+    previous = settings.local_dev_login
+    try:
+        settings.local_dev_login = False
+        assert client.get("/dev/fieldhub-admin.js").status_code == 404
+        settings.local_dev_login = True
+        assert client.get("/dev/fieldhub-admin.js", headers={"host": "example.org"}).status_code == 403
+        response = client.get("/dev/fieldhub-admin.js", headers={"host": "127.0.0.1:8000"})
+        assert response.status_code == 200
+        assert "javascript" in response.headers["content-type"]
+        assert "no-store" in response.headers["cache-control"]
+    finally:
+        settings.local_dev_login = previous
