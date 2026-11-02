@@ -34,7 +34,7 @@ function setPermissions(values){for(const el of checks.querySelectorAll("input")
 function selectedWorkspace(){return workspaceSelect.value}
 function selectedInvitePermissions(){return [...inviteChecks.querySelectorAll("input:checked")].map(x=>x.value)}
 function invitationUrl(token){const u=new URL(redirect);u.hash="invite="+encodeURIComponent(token);return u.toString()}
-function readInviteHash(){const hash=new URLSearchParams(location.hash.slice(1));const token=hash.get("invite");if(token){document.getElementById("claimToken").value=token;history.replaceState(null,"",redirect)}}
+function readInviteHash(){const hash=new URLSearchParams(location.hash.slice(1));const token=hash.get("invite");if(token){document.getElementById("claimToken").value=token;sessionStorage.setItem("fh_pending_invite",token);history.replaceState(null,"",redirect)}else{const pending=sessionStorage.getItem("fh_pending_invite");if(pending)document.getElementById("claimToken").value=pending}}
 async function refreshBootstrap(){
  const data=await api("/v1/bootstrap");
  result.hidden=false;result.textContent=JSON.stringify(data,null,2);
@@ -84,7 +84,7 @@ document.getElementById("claimInvite").onclick=async()=>{
   const token=document.getElementById("claimToken").value.trim();
   if(!token)throw Error("Einladungscode fehlt");
   await api("/v1/invitations/claim","POST",{token});
-  document.getElementById("claimToken").value="";
+  document.getElementById("claimToken").value="";sessionStorage.removeItem("fh_pending_invite");
   label.textContent="Einladung angenommen. Workspace wurde aktualisiert.";
   await refreshBootstrap();
  }catch(e){label.textContent=e.message}
@@ -180,6 +180,7 @@ async function callback(){
  status.textContent="Anmeldung erfolgreich – "+data.workspaces.length+" Workspace(s) freigegeben";
  result.hidden=false;result.textContent=JSON.stringify(data,null,2);
  await loadProfile();
+ readInviteHash();
  await showAdmin(data);
 }
 readInviteHash();
