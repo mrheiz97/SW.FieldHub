@@ -12,13 +12,15 @@ from .dev_login import router as dev_login_router
 from .workspace_admin import router as workspace_admin_router
 from .users_api import router as users_router
 from .workspace_users import router as workspace_users_router
+from .invitations import router as invitations_router
 
-app = FastAPI(title="StumpfWorks FieldHub API", version="0.23.0")
+app = FastAPI(title="StumpfWorks FieldHub API", version="0.24.0")
 
 app.include_router(dev_login_router)
 app.include_router(workspace_admin_router)
 app.include_router(users_router)
 app.include_router(workspace_users_router)
+app.include_router(invitations_router)
 
 class SubmissionWrite(BaseModel):
     formVersion: int = Field(ge=1)
