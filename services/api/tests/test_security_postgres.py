@@ -18,19 +18,21 @@ def pg_workspace():
         pytest.skip("PostgreSQL required")
     workspace_id = "sec-test-" + uuid4().hex[:20]
     user_id = str(uuid4())
-    with engine.connect() as connection:
-        transaction = connection.begin()
+    with Session(engine, expire_on_commit=False) as db:
         try:
-            with Session(bind=connection, expire_on_commit=False) as db:
-                db.add(Workspace(id=workspace_id, name="Temporary test workspace"))
-                db.add(User(id=user_id, display_name="Temporary test user"))
-                db.flush()
-                db.add(Membership(workspace_id=workspace_id, user_id=user_id,
+            db.add(Workspace(id=workspace_id, name="Temporary test workspace"))
+            db.add(User(id=user_id, display_name="Temporary test user"))
+            db.flush()
+            db.add(Membership(workspace_id=workspace_id, user_id=user_id,
                                   subject="test-" + uuid4().hex, permissions=["workspace.manage"]))
-                db.flush()
-                yield db, workspace_id, user_id
+            db.commit()
+            yield db, workspace_id, user_id
         finally:
-            transaction.rollback()
+            db.rollback()
+            with engine.begin() as cleanup:
+                cleanup.execute(text("DELETE FROM memberships WHERE workspace_id = :wid"), {"wid": workspace_id})
+                cleanup.execute(text("DELETE FROM workspaces WHERE id = :wid"), {"wid": workspace_id})
+                cleanup.execute(text("DELETE FROM users WHERE id = :uid"), {"uid": user_id})
 
 def test_postgres_last_admin_protection(pg_workspace):
     db, workspace_id, user_id = pg_workspace
