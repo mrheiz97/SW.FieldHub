@@ -43,7 +43,7 @@ MODULES = (
 )
 
 
-def visible_modules(permissions: set[str]) -> list[dict]:
+def visible_modules(permissions: set[str], enabled_module_ids: set[str] | None = None) -> list[dict]:
     """Return only trusted entries authorized for this workspace membership."""
     result = []
     for module in MODULES:
