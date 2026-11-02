@@ -26,6 +26,12 @@ class InvitationClaim(BaseModel):
 def now():
     return datetime.now(timezone.utc)
 
+def utc_datetime(value: datetime) -> datetime:
+    """Treat database-naive timestamps as UTC, preserving aware timestamps."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
 def invitation_out(inv):
     return {"id": inv.id, "workspaceId": inv.workspace_id, "permissions": inv.permissions,
             "expiresAt": inv.expires_at.isoformat(), "claimed": inv.claimed_at is not None,
@@ -88,7 +94,7 @@ def claim_invitation(body: InvitationClaim, user_id: str = Depends(current_user_
     lock_workspace(db, workspace_id)
     inv = db.scalar(select(WorkspaceInvitation).where(
         WorkspaceInvitation.token_hash == digest).with_for_update())
-    if inv is None or inv.claimed_at is not None or inv.revoked_at is not None or inv.expires_at <= now():
+    if inv is None or inv.claimed_at is not None or inv.revoked_at is not None or utc_datetime(inv.expires_at) <= now():
         raise HTTPException(400, "Invitation invalid or expired")
     # Invitations cannot outlive the authority that originally issued them.
     inviter_grants = effective_permissions(inv.workspace_id, inv.created_by, db)
