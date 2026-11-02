@@ -246,6 +246,7 @@ async function callback(){
  readInviteHash();
  await showAdmin(data);
 }
+if(new URL(location.href).searchParams.get("next")==="fieldhub")sessionStorage.setItem("fh_return_to_preview","1");
 readInviteHash();
 document.getElementById("login").onclick=()=>login().catch(e=>status.textContent=e.message);
 document.getElementById("logout").onclick=()=>{
