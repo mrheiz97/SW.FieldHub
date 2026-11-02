@@ -59,8 +59,10 @@ def remove_user(workspace_id: str, target_id: str, user_id: str = Depends(curren
     target_id = valid_uuid(target_id)
     if target_id == user_id:
         raise HTTPException(403, "Self-removal is disabled")
+    lock_workspace(db, workspace_id)
+    require_permission(workspace_id, "workspace.manage", user_id, db)
     member = db.scalar(select(Membership).where(Membership.workspace_id == workspace_id,
-                                                Membership.user_id == target_id))
+                                                Membership.user_id == target_id).with_for_update())
     if member is None:
         raise HTTPException(404, "Member not found")
     db.delete(member)
