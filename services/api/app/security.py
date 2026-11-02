@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .config import settings
 from .database import get_db
-from .models import Membership
+from .models import Membership, ExternalIdentity, User
 
 bearer = HTTPBearer(auto_error=True)
 
@@ -41,9 +41,34 @@ def current_subject(credentials: HTTPAuthorizationCredentials = Depends(bearer))
     from .auth_providers import get_registry
     return get_registry().validate(credentials.credentials)
 
-def require_permission(workspace_id: str, permission: str, subject: str, db: Session):
+def current_user_id(subject: str = Depends(current_subject), db: Session = Depends(get_db)) -> str:
+    """Resolve a verified external identity, provisioning a new unprivileged user if needed."""
+    identity = db.scalar(select(ExternalIdentity).where(
+        ExternalIdentity.issuer == settings.oidc_issuer,
+        ExternalIdentity.subject == subject))
+    if identity is not None:
+        return identity.user_id
+    # A new identity receives no memberships or permissions.
+    from sqlalchemy.exc import IntegrityError
+    from uuid import uuid4
+    user_id = str(uuid4())
+    db.add(User(id=user_id))
+    db.add(ExternalIdentity(user_id=user_id, issuer=settings.oidc_issuer, subject=subject))
+    try:
+        db.commit()
+        return user_id
+    except IntegrityError:
+        db.rollback()
+        identity = db.scalar(select(ExternalIdentity).where(
+            ExternalIdentity.issuer == settings.oidc_issuer,
+            ExternalIdentity.subject == subject))
+        if identity is None:
+            raise HTTPException(503, "Identity provisioning unavailable")
+        return identity.user_id
+
+def require_permission(workspace_id: str, permission: str, user_id: str, db: Session):
     membership = db.scalar(select(Membership).where(
-        Membership.workspace_id == workspace_id, Membership.subject == subject
+        Membership.workspace_id == workspace_id, Membership.user_id == user_id
     ))
     if membership is None or permission not in membership.permissions:
         raise HTTPException(status_code=403, detail="Workspace permission denied")
