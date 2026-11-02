@@ -48,6 +48,8 @@ def list_roles(workspace_id: str, user_id: str = Depends(current_user_id),
 def create_role(workspace_id: str, body: RoleBody, user_id: str = Depends(current_user_id),
                 db: Session = Depends(get_db)):
     require_permission(workspace_id, "workspace.manage", user_id, db)
+    lock_workspace(db, workspace_id)
+    require_permission(workspace_id, "workspace.manage", user_id, db)
     validate_grant(body, workspace_id, user_id, db)
     name = body.name.strip()
     if not name:
