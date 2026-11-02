@@ -1,0 +1,50 @@
+/* FieldHub responsive local preview enhancements */
+:root{--fh-purple:#ae9bff;--fh-border:#353b4d}
+body{min-width:320px}
+#message:not(:empty){padding:12px 16px;background:#292337;border:1px solid #534667;border-radius:11px;margin:14px 0}
+#message:empty{display:none}
+#content{max-width:1260px}
+.card{min-height:172px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px}
+.card:before{width:44px;height:44px;border-radius:12px;background:#32294b;display:grid;place-items:center;margin-bottom:8px}
+.card strong{margin:0;font-size:18px}
+.card span{line-height:1.5;font-size:13px}
+button{transition:background-color .15s,border-color .15s}
+button:hover{border-color:#7d6bb3}
+.fh-dialog{box-shadow:0 22px 90px #0009}
+.fh-dialog .fh-actions{margin-top:24px}
+.fh-dialog .fh-actions button:last-child{background:var(--fh-purple);color:#151125;font-weight:700}
+.fh-dialog .fh-actions button:last-child:disabled{opacity:.5}
+.fh-entry{min-width:0}
+.fh-entry>div:first-child{min-width:0;overflow-wrap:anywhere}
+.fh-entry .fh-actions button{font-size:13px}
+#nav button{min-height:44px}
+.fh-toast-region{position:fixed;right:20px;bottom:20px;z-index:1000;display:grid;gap:8px;max-width:min(380px,calc(100vw - 32px))}
+.fh-toast{background:#252b3c;border:1px solid #545b73;color:#f3f3f8;padding:14px 18px;border-radius:12px;box-shadow:0 12px 36px #0006;display:flex;align-items:center;gap:12px;justify-content:space-between}
+.fh-toast.error{border-color:#a96b72;color:#ffd8dc}
+.fh-toast button{padding:5px 9px}
+.fh-mobilebar{display:none}
+@media(max-width:850px){
+ .shell{display:block}
+ aside{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:16px 20px}
+ aside .brand{font-size:20px}
+ aside>p.small{display:none}
+ #workspaces{width:min(100%,280px);margin:0 0 0 auto}
+ #nav{display:flex;flex:1 0 100%;gap:6px;overflow-x:auto;margin:0;padding-bottom:3px}
+ #nav button{white-space:nowrap;padding:11px 15px}
+ main{padding:24px 20px}
+}
+@media(max-width:540px){
+ aside{gap:12px}
+ #workspaces{width:100%;order:2}
+ #nav{order:3}
+ .toolbar{gap:7px;justify-content:flex-end}
+ .toolbar button{font-size:13px;padding:10px}
+ .welcome{padding:21px}
+ .welcome h2{font-size:23px}
+ .cards{grid-template-columns:1fr}
+ .card{min-height:124px}
+ .fh-dialog{padding:19px}
+ .fh-checks{grid-template-columns:1fr}
+ .fh-actions button{min-height:42px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
