@@ -29,9 +29,31 @@ services:
         condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
+  web-session:
+    profiles: ["web-preview"]
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"]
+  web-bff:
+    profiles: ["web-preview"]
+    build: ../../apps/web/bff
+    restart: unless-stopped
+    environment:
+      BFF_OIDC_ISSUER: ${FIELDHUB_OIDC_ISSUER:?Set OIDC issuer}
+      BFF_OIDC_TOKEN_URL: ${FIELDHUB_BFF_TOKEN_URL:-http://host.docker.internal:8080/realms/fieldhub/protocol/openid-connect/token}
+      BFF_OIDC_CLIENT_ID: fieldhub-web-dev
+      BFF_REDIRECT_URI: http://127.0.0.1:8090/auth/callback
+      BFF_SECURE_COOKIES: "false"
+      BFF_REDIS_URL: redis://web-session:6379/0
+      BFF_API_URL: http://api:8000
+    depends_on:
+      - api
+      - web-session
   web:
     profiles: ["web-preview"]
     build: ../../apps/web
+    depends_on:
+      - web-bff
     restart: unless-stopped
     ports:
       - "127.0.0.1:8090:8080"
