@@ -64,6 +64,8 @@ def list_invitations(workspace_id: str, user_id: str = Depends(current_user_id),
 def revoke_invitation(workspace_id: str, invitation_id: str,
                       user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
     require_permission(workspace_id, "workspace.manage", user_id, db)
+    lock_workspace(db, workspace_id)
+    require_permission(workspace_id, "workspace.manage", user_id, db)
     inv = db.scalar(select(WorkspaceInvitation).where(
         WorkspaceInvitation.id == invitation_id, WorkspaceInvitation.workspace_id == workspace_id).with_for_update())
     if inv is None:
