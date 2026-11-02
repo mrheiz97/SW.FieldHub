@@ -131,3 +131,15 @@ def test_last_admin_role_cannot_be_stripped(env):
     assert response.status_code == 409, response.text
     with Session(engine) as db:
         assert "workspace.manage" in effective_permissions("ravens", ADMIN, db)
+
+def test_workspace_rename_requires_management_permission(env):
+    client, actor, engine = env
+    actor["id"] = SECOND
+    denied = client.patch("/v1/workspaces/ravens/admin", json={"name": "Unauthorized"})
+    assert denied.status_code == 403
+    actor["id"] = ADMIN
+    allowed = client.patch("/v1/workspaces/ravens/admin", json={"name": "Ravens RFC"})
+    assert allowed.status_code == 200, allowed.text
+    assert allowed.json()["name"] == "Ravens RFC"
+    actor["id"] = SECOND
+    assert client.get("/v1/workspaces/ravens/admin").status_code == 403
