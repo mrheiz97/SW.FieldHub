@@ -12,8 +12,14 @@ bearer = HTTPBearer(auto_error=True)
 
 @lru_cache(maxsize=1)
 def jwks_client():
-    if not settings.oidc_jwks_url.startswith("https://"):
-        raise RuntimeError("OIDC JWKS endpoint must use HTTPS")
+    from urllib.parse import urlparse
+    url = urlparse(settings.oidc_jwks_url)
+    secure = url.scheme == "https" and bool(url.hostname)
+    local_dev = (settings.local_dev_http_jwks and url.scheme == "http"
+                 and url.hostname == "keycloak" and url.port == 8080
+                 and url.path == "/realms/fieldhub/protocol/openid-connect/certs")
+    if not (secure or local_dev):
+        raise RuntimeError("JWKS requires HTTPS (except explicitly enabled local Keycloak development)")
     return jwt.PyJWKClient(settings.oidc_jwks_url)
 
 def current_subject(credentials: HTTPAuthorizationCredentials = Depends(bearer)) -> str:
