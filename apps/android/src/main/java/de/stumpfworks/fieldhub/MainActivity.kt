@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.BoxWithConstraints
 
 private val Background = Color(0xFF10131C)
@@ -86,6 +88,7 @@ private fun FieldHubApp() {
     }
     val windowWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
     val useRail = windowWidth >= 600
+    val isCompact = windowWidth < 600
     val primaryNavigation = visibleNavigation.take(4)
     val overflowNavigation = visibleNavigation.drop(4)
     val colors = darkColorScheme(primary = Accent, background = Background, surface = Surface, onSurface = Color.White)
@@ -131,33 +134,48 @@ private fun FieldHubApp() {
                         }
                     }
                 ) { padding ->
-                    Box(Modifier.fillMaxSize().padding(padding)) {
-                                        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-                                            Spacer(Modifier.height(20.dp))
-                                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                            TextButton(onClick = { showWorkspaces = true }, modifier = Modifier.weight(1f)) {
-                                                Icon(Icons.Default.Business, contentDescription = null)
-                                                Spacer(Modifier.width(8.dp))
-                                                Text(selected.name)
-                                                Spacer(Modifier.width(4.dp))
-                                                Icon(Icons.Default.ArrowDropDown, contentDescription = "Workspace wechseln")
-                                            }
-                                            IconButton(onClick = { showServerSettings = true }) {
-                                                Icon(Icons.Default.Settings, contentDescription = "Servereinstellungen")
-                                            }
-                                            }
-                                            Spacer(Modifier.height(16.dp))
-                                            when (section) {
-                                                Section.Today -> TodayScreen(selected)
-                                                Section.Events -> LocalEventsScreen(selected.id, selected.id != "ravens" || demoRole != DemoRole.Player)
-                                                Section.Recruiting -> RecruitingScreen(selected.id)
-                                                Section.Team -> if (selected.id == "ravens" && demoRole != DemoRole.Player) LocalTrainingOverviewScreen(selected.id) else PlaceholderScreen("Nicht verfügbar", "Dieser Bereich ist in der Demo nur für Trainer und Administratoren sichtbar.")
-                                                Section.Tasks -> LocalTasksScreen(selected.id)
-                                                Section.Forms -> FormsWorkspaceScreen(selected.id, uiConfig?.formsFor(selected.id).orEmpty())
-                                                Section.Profile -> RoleProfileScreen(selected.id, demoRole) { newRole -> demoRole = newRole; section = Section.Today }
-                                            }
-                                        }
-                        
+                    Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+                        Column(
+                            Modifier.fillMaxSize()
+                                .widthIn(max = if (isCompact) 560.dp else 1120.dp)
+                                .padding(horizontal = if (isCompact) 16.dp else 28.dp)
+                        ) {
+                            Spacer(Modifier.height(if (isCompact) 8.dp else 20.dp))
+                            Row(
+                                Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    onClick = { showWorkspaces = true },
+                                    modifier = Modifier.weight(1f),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(Icons.Default.Business, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        selected.name,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = "Workspace wechseln")
+                                }
+                                IconButton(onClick = { showServerSettings = true }) {
+                                    Icon(Icons.Default.Settings, contentDescription = "Servereinstellungen")
+                                }
+                            }
+                            Spacer(Modifier.height(if (isCompact) 12.dp else 24.dp))
+                            when (section) {
+                                Section.Today -> TodayScreen(selected, isCompact)
+                                Section.Events -> LocalEventsScreen(selected.id, selected.id != "ravens" || demoRole != DemoRole.Player)
+                                Section.Recruiting -> RecruitingScreen(selected.id)
+                                Section.Team -> if (selected.id == "ravens" && demoRole != DemoRole.Player) LocalTrainingOverviewScreen(selected.id) else PlaceholderScreen("Nicht verfügbar", "Dieser Bereich ist in der Demo nur für Trainer und Administratoren sichtbar.")
+                                Section.Tasks -> LocalTasksScreen(selected.id)
+                                Section.Forms -> FormsWorkspaceScreen(selected.id, uiConfig?.formsFor(selected.id).orEmpty())
+                                Section.Profile -> RoleProfileScreen(selected.id, demoRole) { newRole -> demoRole = newRole; section = Section.Today }
+                            }
+                        }
                     }
                 }
             }
@@ -235,14 +253,14 @@ private fun WorkspacePicker(onSelect: (Workspace) -> Unit, onSettings: () -> Uni
 }
 
 @Composable
-private fun TodayScreen(workspace: Workspace) {
+private fun TodayScreen(workspace: Workspace, compact: Boolean) {
     var actionOpened by remember(workspace.id) { mutableStateOf(false) }
     Text(workspace.role.uppercase(), color = Accent, style = MaterialTheme.typography.labelMedium)
     Spacer(Modifier.height(8.dp))
-    Text(workspace.headline, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = Color.White)
+    Text(workspace.headline, style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold, color = Color.White)
     Spacer(Modifier.height(8.dp))
     Text("Deine persönliche Übersicht", color = Color.LightGray)
-    Spacer(Modifier.height(28.dp))
+    Spacer(Modifier.height(if (compact) 16.dp else 28.dp))
     if (workspace.id == "ravens") {
         val context = LocalContext.current
         val dao = remember(context) { FieldHubDatabase.get(context).dao() }
@@ -251,8 +269,8 @@ private fun TodayScreen(workspace: Workspace) {
         val next = localEvents.filter { it.type.equals("Training", ignoreCase = true) && it.startAt >= System.currentTimeMillis() }
             .minByOrNull { it.startAt }
         if (next != null) {
-            Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(24.dp)) {
-                Column(Modifier.fillMaxWidth().padding(20.dp)) {
+            Card(colors = CardDefaults.cardColors(containerColor = Surface), shape = RoundedCornerShape(if (compact) 16.dp else 24.dp)) {
+                Column(Modifier.fillMaxWidth().padding(if (compact) 16.dp else 20.dp)) {
                     Text("Nächstes Training", color = Accent)
                     Text(next.title, color = Color.White, style = MaterialTheme.typography.titleLarge)
                     Text(next.scheduleLabel, color = Color.LightGray)
@@ -291,7 +309,7 @@ private fun TodayScreen(workspace: Workspace) {
             }
         }
     }
-    Spacer(Modifier.height(20.dp))
+    Spacer(Modifier.height(if (compact) 12.dp else 20.dp))
     Text("Demo-Modus · Keine Serververbindung", color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
     if (actionOpened) {
         AlertDialog(
