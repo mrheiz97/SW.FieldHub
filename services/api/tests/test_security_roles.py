@@ -85,7 +85,7 @@ def test_last_admin_cannot_be_removed(env):
     actor["id"] = ADMIN
     # Grant another administrator, then remove their admin right: permitted because ADMIN remains.
     response = client.put(f"/v1/workspaces/ravens/users/{SECOND}",
-                          json={"permissions": ["workspace.manage"]})
+                          json={"permissions": ["workspace.manage", "forms.read"]})
     assert response.status_code == 200, response.text
     actor["id"] = SECOND
     response = client.put(f"/v1/workspaces/ravens/users/{ADMIN}",
