@@ -10,6 +10,7 @@ from .security import current_user_id, require_permission, effective_permissions
 from .module_registry import visible_modules
 from .workspace_modules import router as workspace_modules_router, enabled_modules
 from .workspace_ui import router as workspace_ui_router
+from .web_preview import router as web_preview_router
 
 from .dev_login import router as dev_login_router
 from .workspace_admin import router as workspace_admin_router
