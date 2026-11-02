@@ -49,14 +49,21 @@ internal fun RecruitingScreen(workspaceId: String) {
     if (detail != null) {
         RecruitingDetailScreen(detail, onBack = { detailId = null }, onEdit = { editing = detail })
     } else Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Recruiting", style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { formEntries = true }) { Text("Einträge") }
-                TextButton(onClick = { formPreview = true }) { Text("Formular") }
-                TextButton(onClick = { creating = true }) { Text("+ Kontakt") }
+        Text("Recruiting", style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { formEntries = true }, contentPadding = PaddingValues(horizontal = 12.dp)) {
+                Text("Einträge", maxLines = 1)
+            }
+            OutlinedButton(onClick = { formPreview = true }, contentPadding = PaddingValues(horizontal = 12.dp)) {
+                Text("Formular", maxLines = 1)
+            }
+            Spacer(Modifier.weight(1f))
+            FilledIconButton(onClick = { creating = true }) {
+                Icon(androidx.compose.material.icons.Icons.Default.Add, contentDescription = "Kontakt hinzufügen")
             }
         }
+        Spacer(Modifier.height(12.dp))
         OutlinedTextField(
             value = search, onValueChange = { search = it },
             label = { Text("Kontakte suchen") },
