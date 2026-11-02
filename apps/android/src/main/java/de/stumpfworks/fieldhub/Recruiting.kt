@@ -12,6 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,7 +62,7 @@ internal fun RecruitingScreen(workspaceId: String) {
             }
             Spacer(Modifier.weight(1f))
             FilledIconButton(onClick = { creating = true }) {
-                Icon(androidx.compose.material.icons.Icons.Default.Add, contentDescription = "Kontakt hinzufügen")
+                Icon(Icons.Default.Add, contentDescription = "Kontakt hinzufügen")
             }
         }
         Spacer(Modifier.height(12.dp))
