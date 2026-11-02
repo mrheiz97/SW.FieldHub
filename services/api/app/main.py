@@ -6,21 +6,23 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .database import get_db
 from .models import Workspace, Membership, Form, Submission, User
-from .security import current_user_id, require_permission
+from .security import current_user_id, require_permission, effective_permissions
 
 from .dev_login import router as dev_login_router
 from .workspace_admin import router as workspace_admin_router
 from .users_api import router as users_router
 from .workspace_users import router as workspace_users_router
 from .invitations import router as invitations_router
+from .roles import router as roles_router
 
-app = FastAPI(title="StumpfWorks FieldHub API", version="0.24.0")
+app = FastAPI(title="StumpfWorks FieldHub API", version="0.25.0")
 
 app.include_router(dev_login_router)
 app.include_router(workspace_admin_router)
 app.include_router(users_router)
 app.include_router(workspace_users_router)
 app.include_router(invitations_router)
+app.include_router(roles_router)
 
 class SubmissionWrite(BaseModel):
     formVersion: int = Field(ge=1)
@@ -43,7 +45,7 @@ def bootstrap(user_id: str = Depends(current_user_id), db: Session = Depends(get
     user = db.get(User, user_id)
     return {"schemaVersion": 1, "user": {"id": user_id, "displayName": user.display_name or user_id},
             "workspaces": [{"id": m.workspace_id, "name": names.get(m.workspace_id, m.workspace_id),
-                            "permissions": m.permissions, "navigation": []} for m in memberships]}
+                            "permissions": sorted(effective_permissions(m.workspace_id, user_id, db)), "navigation": []} for m in memberships]}
 
 @app.get("/v1/workspaces/{workspace_id}/forms")
 def list_forms(workspace_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
