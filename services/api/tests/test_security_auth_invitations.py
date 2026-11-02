@@ -159,3 +159,13 @@ def test_invitation_invalid_after_inviter_loses_delegated_permission(env):
     actor["id"] = THIRD
     response = client.post("/v1/invitations/claim", json={"token": created.json()["token"]})
     assert response.status_code == 400, response.text
+
+def test_oidc_key_service_outage_returns_503(monkeypatch):
+    class OfflineJWKS:
+        def get_signing_key_from_jwt(self, token):
+            raise jwt.PyJWKClientConnectionError("private upstream failure")
+    monkeypatch.setattr(security, "jwks_client", lambda: OfflineJWKS())
+    with pytest.raises(HTTPException) as error:
+        security.validate_oidc_token("test-token")
+    assert error.value.status_code == 503
+    assert "private upstream failure" not in str(error.value.detail)
