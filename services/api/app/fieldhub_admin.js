@@ -15,7 +15,7 @@ function fhChecked(wrap){return [...wrap.querySelectorAll("input:checked")].map(
 function fhField(label,value,max){const wrap=el("label","","fh-field");wrap.append(el("span",label));const input=document.createElement("input");input.value=value||"";input.maxLength=max;wrap.append(input);return {wrap,input}}
 function fhDialog(title){const d=document.createElement("dialog");d.className="fh-dialog";const form=document.createElement("form");form.method="dialog";form.append(el("h2",title));d.append(form);document.body.append(d);d.addEventListener("close",()=>d.remove());return {d,form}}
 function fhActions(form,save){const row=el("div","","fh-actions");const cancel=fhButton("Abbrechen",()=>form.closest("dialog").close());const submit=fhButton("Speichern",save);row.append(cancel,submit);form.append(row);return submit}
-function fhAlert(message){$("message").textContent=message}
+function fhAlert(message){$("message").textContent=message;if(window.fhNotify)window.fhNotify(message,true)}
 async function fhRoles(){const data=await api(fhRoot()+"/roles");return data.items||[]}
 async function fhRenderRoles(){
  const content=$("content");content.replaceChildren();$("heading").textContent="Rollen";
