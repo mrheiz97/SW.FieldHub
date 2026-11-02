@@ -47,4 +47,4 @@ async def exchange(request: Request, body: CodeExchange):
     if result.status_code != 200:
         raise HTTPException(400, "Code exchange rejected by Keycloak")
     data = result.json()
-    return {"access_token": data["access_token"], "expires_in": data.get("expires_in", 0)}
+    return {"access_token": data["access_token"], "id_token": data.get("id_token"), "expires_in": data.get("expires_in", 0)}
