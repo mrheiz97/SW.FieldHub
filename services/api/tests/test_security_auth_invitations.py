@@ -124,7 +124,7 @@ def test_oidc_rejects_wrong_audience_rs256(signed_oidc):
 def test_oidc_rejects_tampered_rs256_signature(signed_oidc):
     token = signed_oidc()
     header, payload, signature = token.split(".")
-    changed = ("A" if signature[-1] != "A" else "B")
+    changed = ("A" if signature[0] != "A" else "B")
     with pytest.raises(HTTPException) as error:
-        security.validate_oidc_token(header + "." + payload + "." + signature[:-1] + changed)
+        security.validate_oidc_token(header + "." + payload + "." + changed + signature[1:])
     assert error.value.status_code == 401
