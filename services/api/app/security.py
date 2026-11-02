@@ -22,11 +22,11 @@ def jwks_client():
         raise RuntimeError("JWKS requires HTTPS (except explicitly enabled local Keycloak development)")
     return jwt.PyJWKClient(settings.oidc_jwks_url)
 
-def current_subject(credentials: HTTPAuthorizationCredentials = Depends(bearer)) -> str:
+def validate_oidc_token(token: str) -> str:
     try:
-        key = jwks_client().get_signing_key_from_jwt(credentials.credentials)
+        key = jwks_client().get_signing_key_from_jwt(token)
         claims = jwt.decode(
-            credentials.credentials, key.key, algorithms=["RS256", "ES256"],
+            token, key.key, algorithms=["RS256", "ES256"],
             audience=settings.oidc_audience, issuer=settings.oidc_issuer,
             options={"require": ["exp", "iat", "iss", "aud", "sub"]},
         )
@@ -36,6 +36,10 @@ def current_subject(credentials: HTTPAuthorizationCredentials = Depends(bearer))
         return subject
     except (jwt.PyJWTError, ValueError) as exc:
         raise HTTPException(status_code=401, detail="Invalid access token") from exc
+
+def current_subject(credentials: HTTPAuthorizationCredentials = Depends(bearer)) -> str:
+    from .auth_providers import get_registry
+    return get_registry().validate(credentials.credentials)
 
 def require_permission(workspace_id: str, permission: str, subject: str, db: Session):
     membership = db.scalar(select(Membership).where(
