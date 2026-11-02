@@ -5,16 +5,18 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .database import get_db
-from .models import Workspace, Membership, Form, Submission
+from .models import Workspace, Membership, Form, Submission, User
 from .security import current_user_id, require_permission
 
 from .dev_login import router as dev_login_router
 from .workspace_admin import router as workspace_admin_router
+from .users_api import router as users_router
 
-app = FastAPI(title="StumpfWorks FieldHub API", version="0.22.0")
+app = FastAPI(title="StumpfWorks FieldHub API", version="0.23.0")
 
 app.include_router(dev_login_router)
 app.include_router(workspace_admin_router)
+app.include_router(users_router)
 
 class SubmissionWrite(BaseModel):
     formVersion: int = Field(ge=1)
@@ -34,7 +36,8 @@ def bootstrap(user_id: str = Depends(current_user_id), db: Session = Depends(get
     memberships = db.scalars(select(Membership).where(Membership.user_id == user_id)).all()
     ids = [m.workspace_id for m in memberships]
     names = {w.id: w.name for w in db.scalars(select(Workspace).where(Workspace.id.in_(ids))).all()}
-    return {"schemaVersion": 1, "user": {"id": user_id, "displayName": user_id},
+    user = db.get(User, user_id)
+    return {"schemaVersion": 1, "user": {"id": user_id, "displayName": user.display_name or user_id},
             "workspaces": [{"id": m.workspace_id, "name": names.get(m.workspace_id, m.workspace_id),
                             "permissions": m.permissions, "navigation": []} for m in memberships]}
 
