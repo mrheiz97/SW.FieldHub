@@ -29,6 +29,7 @@ app.include_router(invitations_router)
 app.include_router(roles_router)
 app.include_router(workspace_modules_router)
 app.include_router(workspace_ui_router)
+app.include_router(web_preview_router)
 
 class SubmissionWrite(BaseModel):
     formVersion: int = Field(ge=1)
