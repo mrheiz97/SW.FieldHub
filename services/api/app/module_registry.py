@@ -47,6 +47,8 @@ def visible_modules(permissions: set[str]) -> list[dict]:
     """Return only trusted entries authorized for this workspace membership."""
     result = []
     for module in MODULES:
+        if enabled_module_ids is not None and module.id not in enabled_module_ids:
+            continue
         entries = [
             {"id": item.id, "label": item.label, "route": item.route, "icon": item.icon}
             for item in module.navigation
