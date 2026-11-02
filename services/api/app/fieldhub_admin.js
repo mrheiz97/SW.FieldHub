@@ -33,3 +33,36 @@ async function fhEditRole(role){
 }
 async function fhDeleteRole(role){if(!confirm('Rolle "'+role.name+'" wirklich löschen?'))return;try{await fhRequestDelete(fhRoot()+"/roles/"+encodeURIComponent(role.id));await fhRenderRoles()}catch(e){fhAlert(e.message)}}
 async function fhRequestDelete(path){const response=await fetch(path,{method:"DELETE",headers:{Authorization:"Bearer "+token},cache:"no-store"});if(!response.ok)throw Error("API "+response.status+": "+(await response.text()).slice(0,180))}
+
+async function fhRenderMembers(){
+ const content=$("content");content.replaceChildren();$("heading").textContent="Mitglieder";
+ content.append(el("p","Mitglieder und ihre Workspace-Berechtigungen verwalten.","small"));
+ const panel=fhPanel("Workspace-Mitglieder");content.append(panel);
+ try{const data=await api(fhRoot()+"/users");for(const member of data.items||[]){
+ const row=el("div","","fh-entry"),details=el("div");
+ details.append(el("strong",member.displayName),el("p",(member.permissions||[]).join(" · ")||"Keine direkten Rechte","small"));
+ const actions=el("div","","fh-actions");
+ if(member.userId!==bootstrap.user.id){actions.append(fhButton("Berechtigungen",()=>fhEditMember(member)),fhButton("Rollen",()=>fhMemberRoles(member)));}
+ else actions.append(el("span","Eigenes Konto","small"));
+ row.append(details,actions);panel.append(row);
+ }if(!(data.items||[]).length)panel.append(el("p","Noch keine Mitglieder vorhanden.","small"))}catch(e){fhAlert(e.message)}
+}
+async function fhEditMember(member){
+ const {d,form}=fhDialog("Berechtigungen: "+member.displayName);
+ form.append(el("p","Direkte Berechtigungen des Mitglieds","small"));
+ const checks=fhCheckList(member.permissions||[]);form.append(checks);
+ const save=async()=>{saveButton.disabled=true;try{await api(fhRoot()+"/users/"+encodeURIComponent(member.userId),"PUT",{permissions:fhChecked(checks)});d.close();await fhRenderMembers()}catch(e){fhAlert(e.message);saveButton.disabled=false}};
+ const saveButton=fhActions(form,save);d.showModal();
+}
+async function fhMemberRoles(member){
+ try{const [roles,assigned]=await Promise.all([fhRoles(),api(fhRoot()+"/users/"+encodeURIComponent(member.userId)+"/roles")]);
+ const {d,form}=fhDialog("Rollen: "+member.displayName);
+ const checks=el("div","","fh-checks");
+ for(const role of roles){const label=el("label","","fh-check"),input=document.createElement("input");input.type="checkbox";input.value=role.id;input.checked=assigned.roleIds.includes(role.id);label.append(input,el("span",role.name));checks.append(label)}
+ form.append(checks);if(!roles.length)form.append(el("p","Noch keine Rollen angelegt.","small"));
+ const save=async()=>{saveButton.disabled=true;try{await api(fhRoot()+"/users/"+encodeURIComponent(member.userId)+"/roles","PUT",{roleIds:[...checks.querySelectorAll("input:checked")].map(x=>x.value)});d.close();await fhRenderMembers()}catch(e){fhAlert(e.message);saveButton.disabled=false}};
+ const saveButton=fhActions(form,save);d.showModal();
+ }catch(e){fhAlert(e.message)}
+}
+const fhOriginalRender=render;
+render=function(){fhOriginalRender();if(active==="roles")void fhRenderRoles();if(active==="members")void fhRenderMembers()};
