@@ -89,8 +89,8 @@ private fun FieldHubApp() {
     val windowWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
     val useRail = windowWidth >= 600
     val isCompact = windowWidth < 600
-    val primaryNavigation = visibleNavigation.take(4)
-    val overflowNavigation = visibleNavigation.drop(4)
+    val primaryNavigation = visibleNavigation.take(3)
+    val overflowNavigation = visibleNavigation.drop(3)
     val colors = darkColorScheme(primary = Accent, background = Background, surface = Surface, onSurface = Color.White)
     MaterialTheme(colorScheme = colors) {
         if (selected == null) {
@@ -120,7 +120,7 @@ private fun FieldHubApp() {
                                     selected = section == item,
                                     onClick = { section = item },
                                     icon = { FieldHubNavigationIcon(item) },
-                                    label = { Text(label) }
+                                    label = { Text(if (item == Section.Recruiting) "Kontakte" else if (item == Section.Tasks) "Tasks" else label, maxLines = 1, softWrap = false, style = MaterialTheme.typography.labelSmall) }
                                 )
                             }
                             if (overflowNavigation.isNotEmpty()) {
