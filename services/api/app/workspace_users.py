@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .database import get_db
 from .models import Membership, User
-from .security import current_user_id, require_permission
+from .security import current_user_id, require_permission, effective_permissions, lock_workspace, assert_administrator_remains
 
 router = APIRouter(prefix="/v1/workspaces", tags=["Workspace users"])
 ALLOWED = frozenset({"forms.read", "forms.submissions.read", "forms.submissions.write", "sync.write", "workspace.manage"})
@@ -39,11 +39,16 @@ def update_user(workspace_id: str, target_id: str, body: PermissionsUpdate,
         raise HTTPException(403, "Self-modification is disabled")
     if len(set(body.permissions)) != len(body.permissions) or not set(body.permissions) <= ALLOWED:
         raise HTTPException(422, "Unknown or duplicate permission")
+    lock_workspace(db, workspace_id)
+    require_permission(workspace_id, "workspace.manage", user_id, db)
     member = db.scalar(select(Membership).where(Membership.workspace_id == workspace_id,
                                                 Membership.user_id == target_id))
     if member is None:
         raise HTTPException(404, "Member not found")
+    if not set(body.permissions) <= effective_permissions(workspace_id, user_id, db):
+        raise HTTPException(403, "Cannot grant permissions you do not hold")
     member.permissions = list(body.permissions)
+    assert_administrator_remains(db, workspace_id)
     db.commit()
     return member_out(member, db.get(User, target_id))
 
@@ -59,4 +64,5 @@ def remove_user(workspace_id: str, target_id: str, user_id: str = Depends(curren
     if member is None:
         raise HTTPException(404, "Member not found")
     db.delete(member)
+    assert_administrator_remains(db, workspace_id)
     db.commit()
