@@ -46,7 +46,8 @@ def bootstrap(user_id: str = Depends(current_user_id), db: Session = Depends(get
     user = db.get(User, user_id)
     return {"schemaVersion": 1, "user": {"id": user_id, "displayName": user.display_name or user_id},
             "workspaces": [{"id": m.workspace_id, "name": names.get(m.workspace_id, m.workspace_id),
-                            "permissions": sorted(effective_permissions(m.workspace_id, user_id, db)), "navigation": visible_modules(effective_permissions(m.workspace_id, user_id, db))} for m in memberships]}
+                            "permissions": sorted(effective_permissions(m.workspace_id, user_id, db)), "modules": visible_modules(effective_permissions(m.workspace_id, user_id, db)),
+                            "navigation": [entry for module in visible_modules(effective_permissions(m.workspace_id, user_id, db)) for entry in module["navigation"]]} for m in memberships]}
 
 @app.get("/v1/workspaces/{workspace_id}/forms")
 def list_forms(workspace_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
