@@ -236,6 +236,7 @@ async function callback(){
  const response=await fetch("/dev/token",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code,verifier}),cache:"no-store"});
  if(!response.ok)throw Error("Token-Austausch fehlgeschlagen (HTTP "+response.status+")");
  const tokens=await response.json();accessToken=tokens.access_token;idToken=tokens.id_token||null;
+ sessionStorage.setItem("fh_web_token",accessToken);
  const bootstrap=await fetch("/v1/bootstrap",{headers:{Authorization:"Bearer "+accessToken},cache:"no-store"});
  if(!bootstrap.ok)throw Error("FieldHub API: HTTP "+bootstrap.status+" – Audience/Issuer prüfen");
  const data=await bootstrap.json();
