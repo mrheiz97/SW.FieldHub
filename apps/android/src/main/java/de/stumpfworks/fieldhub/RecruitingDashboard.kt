@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private val dashboardPanel = Color(0xFF1C2230)
@@ -46,7 +47,7 @@ internal fun RecruitingDashboard(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(dashboard?.title ?: "Überblick", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val columns = if (maxWidth >= 650.dp) 4 else 2
+            val columns = when { maxWidth >= 840.dp -> 4; maxWidth >= 600.dp -> 3; else -> 2 }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 metrics.chunked(columns).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -64,9 +65,9 @@ internal fun RecruitingDashboard(
                                 colors = CardDefaults.cardColors(containerColor = dashboardPanel),
                                 shape = RoundedCornerShape(16.dp)
                             ) {
-                                Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                                    Text(valueFor(metric.dataSource).toString(), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                                    Text(metric.label, color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
+                                Column(Modifier.fillMaxWidth().heightIn(min = 92.dp).padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(valueFor(metric.dataSource).toString(), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    Text(metric.label, color = Color.LightGray, style = MaterialTheme.typography.labelSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
