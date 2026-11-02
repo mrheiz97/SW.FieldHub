@@ -36,13 +36,14 @@ CREATE TEMP TABLE _legacy_issuer (value text NOT NULL CHECK (length(value) > 0))
 INSERT INTO _legacy_issuer(value) VALUES (:'legacy_issuer');
 
 CREATE TEMP TABLE _legacy_users ON COMMIT DROP AS
-SELECT DISTINCT m.subject, gen_random_uuid() AS user_id
+SELECT m.subject, gen_random_uuid() AS user_id
 FROM memberships m
 WHERE NOT EXISTS (
     SELECT 1 FROM external_identities e
     JOIN _legacy_issuer i ON e.issuer = i.value
     WHERE e.subject = m.subject
-);
+)
+GROUP BY m.subject;
 
 INSERT INTO users(id) SELECT user_id FROM _legacy_users;
 INSERT INTO external_identities(user_id, issuer, subject)
