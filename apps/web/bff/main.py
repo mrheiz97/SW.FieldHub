@@ -59,3 +59,44 @@ async def get_session(request:Request):
     sid,data=await session(request)
     if not data:raise HTTPException(401,"Login required")
     return {"authenticated":True,"csrf":data["csrf"]}
+
+def require_origin(request):
+    expected=str(request.base_url).rstrip("/")
+    if request.headers.get("origin")!=expected:
+        raise HTTPException(403,"Origin mismatch")
+
+@app.post("/auth/logout")
+async def logout(request:Request):
+    require_origin(request)
+    sid,data=await session(request)
+    if not data:raise HTTPException(401,"Login required")
+    await store.delete("session:"+sid)
+    result=Response(status_code=204)
+    result.delete_cookie(cookie_name,path="/",secure=secure,httponly=True,samesite="lax")
+    return result
+
+@app.api_route("/v1/{path:path}",methods=["GET","POST","PUT","PATCH","DELETE"])
+async def proxy(path:str,request:Request):
+    sid,data=await session(request)
+    if not data:raise HTTPException(401,"Login required")
+    if ".." in path.split("/") or len(path)>2048:raise HTTPException(400,"Invalid path")
+    if request.method!="GET":
+        require_origin(request)
+        if not secrets.compare_digest(request.headers.get("x-csrf-token",""),data["csrf"]):
+            raise HTTPException(403,"Invalid CSRF token")
+    body=await request.body()
+    if len(body)>1048576:raise HTTPException(413,"Body too large")
+    headers={"Authorization":"Bearer "+data["access"],"Accept":"application/json"}
+    if request.headers.get("content-type","").startswith("application/json"):
+        headers["Content-Type"]="application/json"
+    try:
+        async with httpx.AsyncClient(timeout=15,follow_redirects=False) as client:
+            upstream=await client.request(request.method,api_url+"/v1/"+path,
+                                          params=request.query_params,content=body,headers=headers)
+    except httpx.RequestError:
+        raise HTTPException(502,"API unavailable")
+    if upstream.status_code==401:
+        await store.delete("session:"+sid)
+    return Response(upstream.content,status_code=upstream.status_code,
+                    media_type=upstream.headers.get("content-type","application/json"),
+                    headers={"Cache-Control":"no-store"})
