@@ -168,3 +168,17 @@ def test_submission_list_is_workspace_scoped(env):
     assert [item["id"] for item in response.json()["items"]] == ["r1"]
     actor["id"] = SECOND
     assert client.get("/v1/workspaces/ravens/forms/shared/submissions").status_code == 403
+
+def test_bootstrap_modules_respect_permissions(env):
+    client, actor, engine = env
+    response = client.get("/v1/bootstrap")
+    assert response.status_code == 200, response.text
+    workspace = response.json()["workspaces"][0]
+    assert {m["id"] for m in workspace["modules"]} == {"forms", "administration"}
+    assert {n["id"] for n in workspace["navigation"]} == {"forms", "members", "roles"}
+    actor["id"] = SECOND
+    response = client.get("/v1/bootstrap")
+    assert response.status_code == 200, response.text
+    workspace = response.json()["workspaces"][0]
+    assert [m["id"] for m in workspace["modules"]] == ["forms"]
+    assert [n["id"] for n in workspace["navigation"]] == ["forms"]
