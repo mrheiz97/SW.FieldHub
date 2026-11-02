@@ -15,7 +15,7 @@ small{color:#a9a2bc}input{box-sizing:border-box;background:#12111c;color:#fff;bo
 <p id="status" role="status">Nicht angemeldet.</p><pre id="result" hidden></pre>
 <section id="profile" class="panel" hidden><h2>Mein Profil</h2><label for="displayName">Anzeigename</label><input id="displayName" maxlength="160"><button id="saveProfile">Profil speichern</button><p id="profileStatus" class="muted" role="status"></p></section>
 <section id="claimPanel" class="panel"><h2>Einladung annehmen</h2><p class="hint">Melde dich zuerst mit deinem eigenen Keycloak-Konto an. Einladungslinks enthalten einen vertraulichen Einmalcode.</p><label for="claimToken">Einladungscode</label><input id="claimToken" autocomplete="off" spellcheck="false" placeholder="Einladungscode einfügen"><button id="claimInvite">Einladung annehmen</button><p id="claimStatus" class="muted" role="status"></p></section>
-<section id="admin" class="panel" hidden><h2>Workspace-Verwaltung</h2><label for="workspace">Workspace</label><select id="workspace"></select><div id="workspaceEdit"><label for="workspaceName">Workspace-Name</label><input id="workspaceName" maxlength="160"><button id="rename">Namen speichern</button></div><h3>Einladungen</h3><p class="hint">Neue Mitglieder erhalten zunächst nur die hier ausgewählten Rechte.</p><div class="checks" id="invitePermissions"></div><label for="inviteHours">Gültigkeit in Stunden (1–168)</label><input id="inviteHours" type="number" min="1" max="168" value="48"><button id="createInvite">Einladung erstellen</button><div id="inviteSecret" hidden><p>Einladungslink – nur privat weitergeben:</p><div id="inviteLink" class="secret"></div><button id="copyInvite" class="secondary">Link kopieren</button></div><div id="invitations"></div><h3>Mitglieder</h3><div id="members"></div><h3>Mitglied bearbeiten</h3><label for="targetUser">FieldHub-Benutzer-ID</label><input id="targetUser" maxlength="36" autocomplete="off" placeholder="Mitglied oben auswählen" readonly><div class="checks" id="permissions"></div><button id="saveMember">Berechtigungen speichern</button><p class="muted" id="adminStatus" role="status"></p></section><small>Nur für lokale Demo-Daten. Keine Tokens oder Passwörter weitergeben. Änderungen werden in PostgreSQL gespeichert.</small>
+<section id="admin" class="panel" hidden><h2>Workspace-Verwaltung</h2><label for="workspace">Workspace</label><select id="workspace"></select><div id="workspaceEdit"><label for="workspaceName">Workspace-Name</label><input id="workspaceName" maxlength="160"><button id="rename">Namen speichern</button></div><h3>Einladungen</h3><p class="hint">Neue Mitglieder erhalten zunächst nur die hier ausgewählten Rechte.</p><div class="checks" id="invitePermissions"></div><label for="inviteHours">Gültigkeit in Stunden (1–168)</label><input id="inviteHours" type="number" min="1" max="168" value="48"><button id="createInvite">Einladung erstellen</button><div id="inviteSecret" hidden><p>Einladungslink – nur privat weitergeben:</p><div id="inviteLink" class="secret"></div><button id="copyInvite" class="secondary">Link kopieren</button></div><div id="invitations"></div><h3>Individuelle Rollen</h3><label for="roleName">Rollenname</label><input id="roleName" maxlength="100" placeholder="z. B. Trainer"><label for="roleDescription">Beschreibung</label><input id="roleDescription" maxlength="500"><div class="checks" id="rolePermissions"></div><button id="saveRole">Rolle erstellen</button><button class="secondary" id="cancelRole" hidden>Bearbeitung abbrechen</button><div id="rolesList"></div><h3>Mitglieder</h3><div id="members"></div><h3>Mitglied bearbeiten</h3><div id="memberRoles"></div><label for="targetUser">FieldHub-Benutzer-ID</label><input id="targetUser" maxlength="36" autocomplete="off" placeholder="Mitglied oben auswählen" readonly><div class="checks" id="permissions"></div><button id="saveMember">Berechtigungen speichern</button><p class="muted" id="adminStatus" role="status"></p></section><small>Nur für lokale Demo-Daten. Keine Tokens oder Passwörter weitergeben. Änderungen werden in PostgreSQL gespeichert.</small>
 </main><script>
 "use strict";
 const redirect="http://127.0.0.1:8000/dev/login";
@@ -28,10 +28,12 @@ const allowedPermissions=["forms.read","forms.submissions.read","forms.submissio
 const adminPanel=document.getElementById("admin"),adminStatus=document.getElementById("adminStatus"),workspaceSelect=document.getElementById("workspace");
 const checks=document.getElementById("permissions");
 const inviteChecks=document.getElementById("invitePermissions");
-for(const permission of allowedPermissions){const label=document.createElement("label"),box=document.createElement("input");box.type="checkbox";box.value=permission;label.append(box,document.createTextNode(permission));checks.append(label);const il=label.cloneNode(true);inviteChecks.append(il)}
+const roleChecks=document.getElementById("rolePermissions");let editingRole=null;let availableRoles=[];
+for(const permission of allowedPermissions){const label=document.createElement("label"),box=document.createElement("input");box.type="checkbox";box.value=permission;label.append(box,document.createTextNode(permission));checks.append(label);const il=label.cloneNode(true);inviteChecks.append(il);roleChecks.append(label.cloneNode(true))}
 function selectedPermissions(){return [...checks.querySelectorAll("input:checked")].map(x=>x.value)}
 function setPermissions(values){for(const el of checks.querySelectorAll("input"))el.checked=values.includes(el.value)}
 function selectedWorkspace(){return workspaceSelect.value}
+function selectedRolePermissions(){return [...roleChecks.querySelectorAll("input:checked")].map(x=>x.value)}
 function selectedInvitePermissions(){return [...inviteChecks.querySelectorAll("input:checked")].map(x=>x.value)}
 function invitationUrl(token){const u=new URL(redirect);u.hash="invite="+encodeURIComponent(token);return u.toString()}
 function readInviteHash(){const hash=new URLSearchParams(location.hash.slice(1));const token=hash.get("invite");if(token){document.getElementById("claimToken").value=token;sessionStorage.setItem("fh_pending_invite",token);history.replaceState(null,"",redirect)}else{const pending=sessionStorage.getItem("fh_pending_invite");if(pending)document.getElementById("claimToken").value=pending}}
@@ -43,6 +45,66 @@ async function refreshBootstrap(){
 }
 async function api(path,method="GET",body){if(!accessToken)throw Error("Bitte erneut anmelden");const response=await fetch(path,{method,headers:{"Authorization":"Bearer "+accessToken,...(body===undefined?{}:{"Content-Type":"application/json"})},body:body===undefined?undefined:JSON.stringify(body),cache:"no-store"});if(!response.ok)throw Error("API "+response.status+": "+(await response.text()).slice(0,200));return response.status===204?null:response.json()}
 function report(error){adminStatus.textContent=error instanceof Error?error.message:String(error)}
+function resetRoleEditor(){
+ editingRole=null;document.getElementById("roleName").value="";
+ document.getElementById("roleDescription").value="";
+ for(const el of roleChecks.querySelectorAll("input"))el.checked=false;
+ document.getElementById("saveRole").textContent="Rolle erstellen";
+ document.getElementById("cancelRole").hidden=true;
+}
+document.getElementById("cancelRole").onclick=resetRoleEditor;
+async function loadRoles(){
+ const id=selectedWorkspace();if(!id)return;
+ const data=await api("/v1/workspaces/"+encodeURIComponent(id)+"/roles");
+ availableRoles=data.items;
+ const list=document.getElementById("rolesList");list.replaceChildren();
+ for(const role of availableRoles){
+  const row=document.createElement("div");row.className="member";
+  const info=document.createElement("div");
+  const title=document.createElement("strong");title.textContent=role.name;
+  const details=document.createElement("div");details.className="muted";
+  details.textContent=[role.description,role.permissions.join(", ")].filter(Boolean).join(" · ");
+  info.append(title,details);
+  const edit=document.createElement("button");edit.className="secondary";edit.textContent="Bearbeiten";
+  edit.onclick=()=>{editingRole=role.id;document.getElementById("roleName").value=role.name;
+   document.getElementById("roleDescription").value=role.description;
+   for(const box of roleChecks.querySelectorAll("input"))box.checked=role.permissions.includes(box.value);
+   document.getElementById("saveRole").textContent="Rolle speichern";
+   document.getElementById("cancelRole").hidden=false};
+  const del=document.createElement("button");del.className="secondary";del.textContent="Löschen";
+  del.onclick=async()=>{if(!confirm("Rolle löschen? Zugewiesene Rollen müssen vorher entfernt werden."))return;
+   try{await api("/v1/workspaces/"+encodeURIComponent(id)+"/roles/"+encodeURIComponent(role.id),"DELETE");await loadRoles();adminStatus.textContent="Rolle gelöscht"}catch(e){report(e)}};
+  row.append(info,edit,del);list.append(row);
+ }
+ if(!availableRoles.length)list.textContent="Noch keine Rollen vorhanden.";
+}
+document.getElementById("saveRole").onclick=async()=>{
+ try{
+  const name=document.getElementById("roleName").value.trim();
+  if(!name)throw Error("Rollenname fehlt");
+  const body={name,description:document.getElementById("roleDescription").value.trim(),permissions:selectedRolePermissions()};
+  const path="/v1/workspaces/"+encodeURIComponent(selectedWorkspace())+"/roles";
+  await api(editingRole?path+"/"+encodeURIComponent(editingRole):path,editingRole?"PUT":"POST",body);
+  resetRoleEditor();await loadRoles();adminStatus.textContent="Rolle gespeichert";
+ }catch(e){report(e)}
+};
+async function loadMemberRoles(target){
+ const data=await api("/v1/workspaces/"+encodeURIComponent(selectedWorkspace())+"/users/"+encodeURIComponent(target)+"/roles");
+ const list=document.getElementById("memberRoles");list.replaceChildren();
+ const heading=document.createElement("p");heading.textContent="Rollen des ausgewählten Mitglieds:";list.append(heading);
+ for(const role of availableRoles){
+  const label=document.createElement("label");const check=document.createElement("input");
+  check.type="checkbox";check.value=role.id;check.checked=data.roleIds.includes(role.id);
+  label.append(check,document.createTextNode(" "+role.name));list.append(label);
+ }
+ const save=document.createElement("button");save.textContent="Mitgliedsrollen speichern";
+ save.onclick=async()=>{try{
+  const roleIds=[...list.querySelectorAll("input:checked")].map(x=>x.value);
+  await api("/v1/workspaces/"+encodeURIComponent(selectedWorkspace())+"/users/"+encodeURIComponent(target)+"/roles","PUT",{roleIds});
+  adminStatus.textContent="Mitgliedsrollen gespeichert";await loadMembers();
+ }catch(e){report(e)}};
+ list.append(save);
+}
 async function loadInvitations(){
  const id=selectedWorkspace();if(!id)return;
  document.getElementById("inviteSecret").hidden=true;
@@ -103,7 +165,7 @@ async function loadMembers(){
   const summary=document.createElement("div");summary.className="muted";summary.textContent=member.permissions.join(", ")||"Keine Rechte";
   info.append(name,document.createElement("br"),code,summary);
   const edit=document.createElement("button");edit.className="secondary";edit.textContent="Bearbeiten";edit.disabled=member.userId===myUserId;
-  edit.onclick=()=>{document.getElementById("targetUser").value=member.userId;setPermissions(member.permissions);document.getElementById("saveMember").focus()};
+  edit.onclick=()=>{document.getElementById("targetUser").value=member.userId;setPermissions(member.permissions);loadMemberRoles(member.userId).catch(report);document.getElementById("saveMember").focus()};
   const del=document.createElement("button");del.className="secondary";del.textContent="Entfernen";del.disabled=member.userId===myUserId;
   del.onclick=async()=>{if(!confirm("Mitglied aus diesem Workspace entfernen?"))return;try{await api("/v1/workspaces/"+encodeURIComponent(id)+"/users/"+encodeURIComponent(member.userId),"DELETE");await loadMembers();adminStatus.textContent="Mitglied entfernt"}catch(e){report(e)}};
   row.append(info,edit,del);list.append(row);
@@ -116,7 +178,7 @@ async function showAdmin(data){
  workspaceSelect.replaceChildren();
  for(const w of managed){const option=document.createElement("option");option.value=w.id;option.textContent=w.name;workspaceSelect.append(option)}
  adminPanel.hidden=!managed.length;
- if(managed.length){await loadMembers();await loadInvitations()}
+ if(managed.length){await loadRoles();await loadMembers();await loadInvitations()}
 }
 async function loadProfile(){
  const me=await api("/v1/users/me");
@@ -134,7 +196,7 @@ document.getElementById("saveProfile").onclick=async()=>{
   document.getElementById("profileStatus").textContent="Profil gespeichert";
  }catch(e){document.getElementById("profileStatus").textContent=e.message}
 };
-workspaceSelect.onchange=()=>{document.getElementById("targetUser").value="";loadMembers().then(loadInvitations).catch(report)};
+workspaceSelect.onchange=()=>{document.getElementById("targetUser").value="";document.getElementById("memberRoles").replaceChildren();resetRoleEditor();loadRoles().then(loadMembers).then(loadInvitations).catch(report)};
 document.getElementById("rename").onclick=async()=>{
  try{const id=selectedWorkspace(),name=document.getElementById("workspaceName").value.trim();
  if(!name)throw Error("Bitte einen Namen eingeben");
