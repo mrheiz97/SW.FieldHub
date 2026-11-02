@@ -15,7 +15,7 @@ from .workspace_users import router as workspace_users_router
 from .invitations import router as invitations_router
 from .roles import router as roles_router
 
-app = FastAPI(title="StumpfWorks FieldHub API", version="0.25.0")
+app = FastAPI(title="StumpfWorks FieldHub API", version="0.26.0")
 
 app.include_router(dev_login_router)
 app.include_router(workspace_admin_router)
