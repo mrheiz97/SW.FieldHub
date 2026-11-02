@@ -7,14 +7,15 @@ main{width:min(800px,calc(100% - 48px));background:#1c1b27;border:1px solid #383
 h1{margin:0 0 6px;font-size:30px;letter-spacing:-1px}h1 span{color:#b8a0ff}p{color:#bbb7cc;line-height:1.5}
 button{background:#9b7df3;color:#110b22;border:0;padding:12px 20px;border-radius:12px;font-weight:700;cursor:pointer;margin:6px 8px 6px 0}
 button.secondary{background:#343040;color:#eee}pre{white-space:pre-wrap;word-break:break-word;background:#101017;padding:16px;border-radius:12px;max-height:350px;overflow:auto;font-size:13px}
-small{color:#a9a2bc}input{box-sizing:border-box;background:#12111c;color:#fff;border:1px solid #494458;border-radius:10px;padding:12px;width:100%;min-width:0}label{display:block;color:#d5d0e2;margin:12px 0 6px;font-size:14px}.panel{border:1px solid #393348;border-radius:16px;padding:18px;margin-top:18px}.member{display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #383447;padding:12px 0;flex-wrap:wrap}.member code{overflow-wrap:anywhere;font-size:12px}.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin:14px 0}.checks label{margin:0;display:flex;gap:8px;align-items:center}.checks input{width:auto}.muted{color:#bdb6d1}select{background:#12111c;color:#fff;border:1px solid #494458;border-radius:10px;padding:10px;width:100%}button:disabled{opacity:.45;cursor:not-allowed}@media(max-width:550px){main{padding:18px}h1{font-size:24px}}
+small{color:#a9a2bc}input{box-sizing:border-box;background:#12111c;color:#fff;border:1px solid #494458;border-radius:10px;padding:12px;width:100%;min-width:0}label{display:block;color:#d5d0e2;margin:12px 0 6px;font-size:14px}.panel{border:1px solid #393348;border-radius:16px;padding:18px;margin-top:18px}.member{display:flex;gap:12px;align-items:center;justify-content:space-between;border-bottom:1px solid #383447;padding:12px 0;flex-wrap:wrap}.member code{overflow-wrap:anywhere;font-size:12px}.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin:14px 0}.checks label{margin:0;display:flex;gap:8px;align-items:center}.checks input{width:auto}.muted{color:#bdb6d1}select{background:#12111c;color:#fff;border:1px solid #494458;border-radius:10px;padding:10px;width:100%}button:disabled{opacity:.45;cursor:not-allowed}.secret{font-family:ui-monospace,monospace;overflow-wrap:anywhere;background:#101017;border-radius:10px;padding:12px}.hint{font-size:13px}@media(max-width:550px){main{padding:18px}h1{font-size:24px}}
 </style></head><body><main>
 <h1>stumpf<span>WORKS</span> FieldHub</h1>
 <p>Lokaler OIDC-Anmeldetest mit Keycloak. Nach der Anmeldung werden deine serverseitig freigegebenen Workspaces angezeigt.</p>
 <button id="login">Mit Keycloak anmelden</button><button class="secondary" id="logout">Bei Keycloak abmelden</button>
 <p id="status" role="status">Nicht angemeldet.</p><pre id="result" hidden></pre>
 <section id="profile" class="panel" hidden><h2>Mein Profil</h2><label for="displayName">Anzeigename</label><input id="displayName" maxlength="160"><button id="saveProfile">Profil speichern</button><p id="profileStatus" class="muted" role="status"></p></section>
-<section id="admin" class="panel" hidden><h2>Workspace-Verwaltung</h2><label for="workspace">Workspace</label><select id="workspace"></select><div id="workspaceEdit"><label for="workspaceName">Workspace-Name</label><input id="workspaceName" maxlength="160"><button id="rename">Namen speichern</button></div><h3>Mitglieder</h3><div id="members"></div><h3>Mitglied bearbeiten</h3><label for="targetUser">FieldHub-Benutzer-ID</label><input id="targetUser" maxlength="36" autocomplete="off" placeholder="Mitglied oben auswählen" readonly><div class="checks" id="permissions"></div><button id="saveMember">Berechtigungen speichern</button><p class="muted" id="adminStatus" role="status"></p></section><small>Nur für lokale Demo-Daten. Keine Tokens oder Passwörter weitergeben. Änderungen werden in PostgreSQL gespeichert.</small>
+<section id="claimPanel" class="panel"><h2>Einladung annehmen</h2><p class="hint">Melde dich zuerst mit deinem eigenen Keycloak-Konto an. Einladungslinks enthalten einen vertraulichen Einmalcode.</p><label for="claimToken">Einladungscode</label><input id="claimToken" autocomplete="off" spellcheck="false" placeholder="Einladungscode einfügen"><button id="claimInvite">Einladung annehmen</button><p id="claimStatus" class="muted" role="status"></p></section>
+<section id="admin" class="panel" hidden><h2>Workspace-Verwaltung</h2><label for="workspace">Workspace</label><select id="workspace"></select><div id="workspaceEdit"><label for="workspaceName">Workspace-Name</label><input id="workspaceName" maxlength="160"><button id="rename">Namen speichern</button></div><h3>Einladungen</h3><p class="hint">Neue Mitglieder erhalten zunächst nur die hier ausgewählten Rechte.</p><div class="checks" id="invitePermissions"></div><label for="inviteHours">Gültigkeit in Stunden (1–168)</label><input id="inviteHours" type="number" min="1" max="168" value="48"><button id="createInvite">Einladung erstellen</button><div id="inviteSecret" hidden><p>Einladungslink – nur privat weitergeben:</p><div id="inviteLink" class="secret"></div><button id="copyInvite" class="secondary">Link kopieren</button></div><div id="invitations"></div><h3>Mitglieder</h3><div id="members"></div><h3>Mitglied bearbeiten</h3><label for="targetUser">FieldHub-Benutzer-ID</label><input id="targetUser" maxlength="36" autocomplete="off" placeholder="Mitglied oben auswählen" readonly><div class="checks" id="permissions"></div><button id="saveMember">Berechtigungen speichern</button><p class="muted" id="adminStatus" role="status"></p></section><small>Nur für lokale Demo-Daten. Keine Tokens oder Passwörter weitergeben. Änderungen werden in PostgreSQL gespeichert.</small>
 </main><script>
 "use strict";
 const redirect="http://127.0.0.1:8000/dev/login";
@@ -26,12 +27,68 @@ let myUserId=null;
 const allowedPermissions=["forms.read","forms.submissions.read","forms.submissions.write","sync.write","workspace.manage"];
 const adminPanel=document.getElementById("admin"),adminStatus=document.getElementById("adminStatus"),workspaceSelect=document.getElementById("workspace");
 const checks=document.getElementById("permissions");
-for(const permission of allowedPermissions){const label=document.createElement("label"),box=document.createElement("input");box.type="checkbox";box.value=permission;label.append(box,document.createTextNode(permission));checks.append(label)}
+const inviteChecks=document.getElementById("invitePermissions");
+for(const permission of allowedPermissions){const label=document.createElement("label"),box=document.createElement("input");box.type="checkbox";box.value=permission;label.append(box,document.createTextNode(permission));checks.append(label);const il=label.cloneNode(true);inviteChecks.append(il)}
 function selectedPermissions(){return [...checks.querySelectorAll("input:checked")].map(x=>x.value)}
 function setPermissions(values){for(const el of checks.querySelectorAll("input"))el.checked=values.includes(el.value)}
 function selectedWorkspace(){return workspaceSelect.value}
+function selectedInvitePermissions(){return [...inviteChecks.querySelectorAll("input:checked")].map(x=>x.value)}
+function invitationUrl(token){const u=new URL(redirect);u.hash="invite="+encodeURIComponent(token);return u.toString()}
+function readInviteHash(){const hash=new URLSearchParams(location.hash.slice(1));const token=hash.get("invite");if(token){document.getElementById("claimToken").value=token;history.replaceState(null,"",redirect)}}
+async function refreshBootstrap(){
+ const data=await api("/v1/bootstrap");
+ result.hidden=false;result.textContent=JSON.stringify(data,null,2);
+ status.textContent="Angemeldet – "+data.workspaces.length+" Workspace(s) freigegeben";
+ await showAdmin(data);
+}
 async function api(path,method="GET",body){if(!accessToken)throw Error("Bitte erneut anmelden");const response=await fetch(path,{method,headers:{"Authorization":"Bearer "+accessToken,...(body===undefined?{}:{"Content-Type":"application/json"})},body:body===undefined?undefined:JSON.stringify(body),cache:"no-store"});if(!response.ok)throw Error("API "+response.status+": "+(await response.text()).slice(0,200));return response.status===204?null:response.json()}
 function report(error){adminStatus.textContent=error instanceof Error?error.message:String(error)}
+async function loadInvitations(){
+ const id=selectedWorkspace();if(!id)return;
+ document.getElementById("inviteSecret").hidden=true;
+ const data=await api("/v1/workspaces/"+encodeURIComponent(id)+"/invitations");
+ const list=document.getElementById("invitations");list.replaceChildren();
+ for(const inv of data.items){
+  const row=document.createElement("div");row.className="member";
+  const info=document.createElement("div");
+  const title=document.createElement("strong");title.textContent=inv.permissions.join(", ");
+  const details=document.createElement("div");details.className="muted";
+  details.textContent=(inv.claimed?"Eingelöst":inv.revoked?"Widerrufen":new Date(inv.expiresAt).getTime()<=Date.now()?"Abgelaufen":"Offen")+" · bis "+new Date(inv.expiresAt).toLocaleString("de-DE");
+  info.append(title,details);
+  const revoke=document.createElement("button");revoke.className="secondary";revoke.textContent="Widerrufen";
+  revoke.disabled=inv.claimed||inv.revoked||new Date(inv.expiresAt).getTime()<=Date.now();
+  revoke.onclick=async()=>{if(!confirm("Einladung widerrufen?"))return;try{await api("/v1/workspaces/"+encodeURIComponent(id)+"/invitations/"+encodeURIComponent(inv.id),"DELETE");await loadInvitations();adminStatus.textContent="Einladung widerrufen"}catch(e){report(e)}};
+  row.append(info,revoke);list.append(row);
+ }
+ if(!data.items.length)list.textContent="Noch keine Einladungen.";
+}
+document.getElementById("createInvite").onclick=async()=>{
+ try{
+  const permissions=selectedInvitePermissions(),hours=Number(document.getElementById("inviteHours").value);
+  if(!permissions.length)throw Error("Bitte mindestens eine Berechtigung auswählen");
+  if(!Number.isInteger(hours)||hours<1||hours>168)throw Error("Gültigkeit muss zwischen 1 und 168 Stunden liegen");
+  const inv=await api("/v1/workspaces/"+encodeURIComponent(selectedWorkspace())+"/invitations","POST",{permissions,expiresInHours:hours});
+  const link=invitationUrl(inv.token);
+  document.getElementById("inviteLink").textContent=link;
+  document.getElementById("inviteSecret").hidden=false;
+  document.getElementById("copyInvite").onclick=async()=>{try{await navigator.clipboard.writeText(link);adminStatus.textContent="Link kopiert"}catch(e){report(e)}};
+  adminStatus.textContent="Einladung erstellt – Link nur privat teilen";
+  await loadInvitations();
+  document.getElementById("inviteLink").textContent=link;
+  document.getElementById("inviteSecret").hidden=false;
+ }catch(e){report(e)}
+};
+document.getElementById("claimInvite").onclick=async()=>{
+ const label=document.getElementById("claimStatus");
+ try{
+  const token=document.getElementById("claimToken").value.trim();
+  if(!token)throw Error("Einladungscode fehlt");
+  await api("/v1/invitations/claim","POST",{token});
+  document.getElementById("claimToken").value="";
+  label.textContent="Einladung angenommen. Workspace wurde aktualisiert.";
+  await refreshBootstrap();
+ }catch(e){label.textContent=e.message}
+};
 async function loadMembers(){
  const id=selectedWorkspace();if(!id)return;
  const meta=await api("/v1/workspaces/"+encodeURIComponent(id)+"/admin");
@@ -59,7 +116,7 @@ async function showAdmin(data){
  workspaceSelect.replaceChildren();
  for(const w of managed){const option=document.createElement("option");option.value=w.id;option.textContent=w.name;workspaceSelect.append(option)}
  adminPanel.hidden=!managed.length;
- if(managed.length)await loadMembers();
+ if(managed.length){await loadMembers();await loadInvitations()}
 }
 async function loadProfile(){
  const me=await api("/v1/users/me");
@@ -77,7 +134,7 @@ document.getElementById("saveProfile").onclick=async()=>{
   document.getElementById("profileStatus").textContent="Profil gespeichert";
  }catch(e){document.getElementById("profileStatus").textContent=e.message}
 };
-workspaceSelect.onchange=()=>loadMembers().catch(report);
+workspaceSelect.onchange=()=>{document.getElementById("targetUser").value="";loadMembers().then(loadInvitations).catch(report)};
 document.getElementById("rename").onclick=async()=>{
  try{const id=selectedWorkspace(),name=document.getElementById("workspaceName").value.trim();
  if(!name)throw Error("Bitte einen Namen eingeben");
@@ -125,6 +182,7 @@ async function callback(){
  await loadProfile();
  await showAdmin(data);
 }
+readInviteHash();
 document.getElementById("login").onclick=()=>login().catch(e=>status.textContent=e.message);
 document.getElementById("logout").onclick=()=>{
  const hint=idToken;accessToken=null;idToken=null;myUserId=null;
