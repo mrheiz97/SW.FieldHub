@@ -116,3 +116,18 @@ def test_role_permissions_are_not_direct_grants(env):
         member = db.query(Membership).filter_by(workspace_id="ravens", user_id=THIRD).one()
         assert member.permissions == []
         assert effective_permissions("ravens", THIRD, db) == {"forms.read"}
+
+def test_last_admin_role_cannot_be_stripped(env):
+    client, actor, engine = env
+    with Session(engine) as db:
+        role = db.get(WorkspaceRole, ROLE)
+        role.permissions = ["workspace.manage"]
+        member = db.query(Membership).filter_by(workspace_id="ravens", user_id=ADMIN).one()
+        member.permissions = ["forms.read"]
+        db.add(WorkspaceRoleAssignment(workspace_id="ravens", role_id=ROLE, user_id=ADMIN))
+        db.commit()
+    response = client.put(f"/v1/workspaces/ravens/roles/{ROLE}",
+                          json={"name": "Trainer", "permissions": []})
+    assert response.status_code == 409, response.text
+    with Session(engine) as db:
+        assert "workspace.manage" in effective_permissions("ravens", ADMIN, db)
