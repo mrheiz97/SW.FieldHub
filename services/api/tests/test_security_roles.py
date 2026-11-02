@@ -211,3 +211,17 @@ def test_module_administration_requires_workspace_manage(env):
     actor["id"] = ADMIN
     assert client.put("/v1/workspaces/other/modules/forms", json={"enabled": False}).status_code == 403
     assert client.put("/v1/workspaces/ravens/modules/unknown", json={"enabled": False}).status_code == 404
+
+def test_ui_schema_is_permission_scoped(env):
+    client, actor, engine = env
+    response = client.get("/v1/workspaces/ravens/ui")
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["schemaVersion"] == 1
+    assert {page["id"] for page in data["pages"]} == {"forms", "members", "roles"}
+    actor["id"] = SECOND
+    data = client.get("/v1/workspaces/ravens/ui").json()
+    assert [page["id"] for page in data["pages"]] == ["forms"]
+    assert [card["target"] for card in data["dashboard"]["cards"]] == ["forms"]
+    actor["id"] = OTHER
+    assert client.get("/v1/workspaces/ravens/ui").status_code == 403
