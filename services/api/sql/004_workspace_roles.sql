@@ -1,6 +1,7 @@
 -- FieldHub v0.25: workspace-scoped custom roles and assignments.
 -- Apply once after 003_workspace_invitations.sql; back up the database first.
 BEGIN;
+ALTER TABLE memberships ADD CONSTRAINT memberships_workspace_user_unique UNIQUE (workspace_id, user_id);
 CREATE TABLE workspace_roles (
  id uuid PRIMARY KEY,
  workspace_id varchar(64) NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
