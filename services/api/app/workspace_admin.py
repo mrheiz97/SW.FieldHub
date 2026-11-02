@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import Membership, Workspace, ExternalIdentity
 from .config import settings
-from .security import current_user_id, require_permission
+from .security import current_user_id, require_permission, effective_permissions, lock_workspace, assert_administrator_remains
 
 router = APIRouter(prefix="/v1/workspaces", tags=["Workspace administration"])
 ALLOWED = frozenset({
@@ -70,6 +70,10 @@ def put_member(workspace_id: str, member_subject: str, body: MembershipWrite,
     if not SUBJECT.fullmatch(member_subject):
         raise HTTPException(422, "Invalid subject")
     check_permissions(body.permissions)
+    lock_workspace(db, workspace_id)
+    require_permission(workspace_id, "workspace.manage", user_id, db)
+    if not set(body.permissions) <= effective_permissions(workspace_id, user_id, db):
+        raise HTTPException(403, "Cannot grant permissions you do not hold")
     if db.scalar(select(Membership).where(Membership.workspace_id == workspace_id, Membership.subject == member_subject, Membership.user_id == user_id)) is not None:
         raise HTTPException(403, "Self-modification is disabled")
     item = db.scalar(select(Membership).where(
@@ -85,6 +89,7 @@ def put_member(workspace_id: str, member_subject: str, body: MembershipWrite,
         db.add(item)
     else:
         item.permissions = list(body.permissions)
+    assert_administrator_remains(db, workspace_id)
     db.commit()
     return membership_out(item)
 
@@ -92,6 +97,8 @@ def put_member(workspace_id: str, member_subject: str, body: MembershipWrite,
 def delete_member(workspace_id: str, member_subject: str,
                   user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
     admin(db, workspace_id, user_id)
+    lock_workspace(db, workspace_id)
+    require_permission(workspace_id, "workspace.manage", user_id, db)
     if db.scalar(select(Membership).where(Membership.workspace_id == workspace_id, Membership.subject == member_subject, Membership.user_id == user_id)) is not None:
         raise HTTPException(403, "Self-removal is disabled")
     item = db.scalar(select(Membership).where(
@@ -99,4 +106,5 @@ def delete_member(workspace_id: str, member_subject: str,
     if item is None:
         raise HTTPException(404, "Membership not found")
     db.delete(item)
+    assert_administrator_remains(db, workspace_id)
     db.commit()
