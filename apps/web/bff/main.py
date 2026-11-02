@@ -18,6 +18,12 @@ client_id=os.environ.get("BFF_OIDC_CLIENT_ID","fieldhub-web-dev")
 api_url=os.environ.get("BFF_API_URL","http://api:8000").rstrip("/")
 secure=os.environ.get("BFF_SECURE_COOKIES","true")=="true"
 cookie_name="__Host-fh_session" if secure else "fh_dev_session"
+from urllib.parse import urlparse
+if not secure and (urlparse(redirect_uri).hostname not in ("127.0.0.1","localhost") or urlparse(redirect_uri).scheme!="http"):
+    raise RuntimeError("Insecure BFF cookies are permitted only for localhost development")
+if secure and urlparse(redirect_uri).scheme!="https":
+    raise RuntimeError("Production BFF requires HTTPS callback")
+
 
 def set_cookie(response,sid):
     response.set_cookie(cookie_name,sid,httponly=True,secure=secure,samesite="lax",path="/",max_age=3600)
