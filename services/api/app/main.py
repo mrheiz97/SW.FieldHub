@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import Workspace, Membership, Form, Submission, User
 from .security import current_user_id, require_permission, effective_permissions
+from .module_registry import visible_modules
 
 from .dev_login import router as dev_login_router
 from .workspace_admin import router as workspace_admin_router
@@ -15,7 +16,7 @@ from .workspace_users import router as workspace_users_router
 from .invitations import router as invitations_router
 from .roles import router as roles_router
 
-app = FastAPI(title="StumpfWorks FieldHub API", version="0.26.0")
+app = FastAPI(title="StumpfWorks FieldHub API", version="0.27.0")
 
 app.include_router(dev_login_router)
 app.include_router(workspace_admin_router)
