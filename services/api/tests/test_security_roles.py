@@ -235,3 +235,14 @@ def test_ui_schema_respects_module_toggle(env):
     assert client.put("/v1/workspaces/ravens/modules/forms", json={"enabled": True}).status_code == 200
     data = client.get("/v1/workspaces/ravens/ui").json()
     assert "forms" in [page["id"] for page in data["pages"]]
+
+def test_web_preview_disabled_by_default(env):
+    client, actor, engine = env
+    from app.config import settings
+    previous = settings.local_dev_login
+    try:
+        settings.local_dev_login = False
+        response = client.get("/dev/fieldhub")
+        assert response.status_code == 404
+    finally:
+        settings.local_dev_login = previous
