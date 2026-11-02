@@ -202,3 +202,12 @@ def test_workspace_module_toggle_updates_bootstrap(env):
     assert enabled.status_code == 200, enabled.text
     workspace = client.get("/v1/bootstrap").json()["workspaces"][0]
     assert "forms" in [module["id"] for module in workspace["modules"]]
+
+def test_module_administration_requires_workspace_manage(env):
+    client, actor, engine = env
+    actor["id"] = SECOND
+    assert client.get("/v1/workspaces/ravens/modules").status_code == 403
+    assert client.put("/v1/workspaces/ravens/modules/forms", json={"enabled": False}).status_code == 403
+    actor["id"] = ADMIN
+    assert client.put("/v1/workspaces/other/modules/forms", json={"enabled": False}).status_code == 403
+    assert client.put("/v1/workspaces/ravens/modules/unknown", json={"enabled": False}).status_code == 404
