@@ -245,6 +245,7 @@ async function callback(){
  await loadProfile();
  readInviteHash();
  await showAdmin(data);
+ if(sessionStorage.getItem("fh_return_to_preview")==="1"){sessionStorage.removeItem("fh_return_to_preview");location.assign("/dev/fieldhub");}
 }
 if(new URL(location.href).searchParams.get("next")==="fieldhub")sessionStorage.setItem("fh_return_to_preview","1");
 readInviteHash();
