@@ -1,6 +1,8 @@
 """Opt-in PostgreSQL integration checks using temporary data and rollback."""
 import os
 from uuid import uuid4
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import select, text
@@ -52,3 +54,26 @@ def test_postgres_workspace_row_lock(pg_workspace):
             competing.execute(text("SELECT id FROM workspaces WHERE id = :wid FOR UPDATE NOWAIT"),
                               {"wid": workspace_id})
         assert error.value.orig.sqlstate == "55P03"
+
+def test_postgres_concurrent_workspace_lock_is_exclusive(pg_workspace):
+    db, workspace_id, _ = pg_workspace
+    lock_workspace(db, workspace_id)
+    start = Event()
+
+    def competing_request():
+        with engine.connect() as connection:
+            start.wait(timeout=5)
+            try:
+                connection.execute(
+                    text("SELECT id FROM workspaces WHERE id = :wid FOR UPDATE NOWAIT"),
+                    {"wid": workspace_id},
+                )
+                return "unexpected_lock"
+            except OperationalError as error:
+                return getattr(error.orig, "sqlstate", None)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(competing_request) for _ in range(2)]
+        start.set()
+        results = [future.result(timeout=10) for future in futures]
+    assert results == ["55P03", "55P03"], results
