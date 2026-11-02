@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .config import settings
 from .database import get_db
-from .models import Membership, ExternalIdentity, User, WorkspaceRole, WorkspaceRoleAssignment
+from .models import Membership, ExternalIdentity, User, WorkspaceRole, WorkspaceRoleAssignment, Workspace
 
 bearer = HTTPBearer(auto_error=True)
 
@@ -88,3 +88,18 @@ def effective_permissions(workspace_id: str, user_id: str, db: Session) -> set[s
 def require_permission(workspace_id: str, permission: str, user_id: str, db: Session):
     if permission not in effective_permissions(workspace_id, user_id, db):
         raise HTTPException(status_code=403, detail="Workspace permission denied")
+
+def lock_workspace(db: Session, workspace_id: str) -> None:
+    """Serialize all permission-changing operations for this workspace."""
+    row = db.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
+    if row is None:
+        raise HTTPException(404, "Workspace not found")
+
+def assert_administrator_remains(db: Session, workspace_id: str) -> None:
+    """Call after mutations and flush, while holding the workspace lock."""
+    db.flush()
+    members = db.scalars(select(Membership.user_id).where(
+        Membership.workspace_id == workspace_id)).all()
+    if not any("workspace.manage" in effective_permissions(workspace_id, uid, db)
+               for uid in members):
+        raise HTTPException(409, "Cannot remove the last workspace administrator")
