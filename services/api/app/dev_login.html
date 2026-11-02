@@ -251,7 +251,7 @@ document.getElementById("login").onclick=()=>login().catch(e=>status.textContent
 document.getElementById("logout").onclick=()=>{
  const hint=idToken;accessToken=null;idToken=null;myUserId=null;
  adminPanel.hidden=true;document.getElementById("profile").hidden=true;
- sessionStorage.removeItem("fh_pkce");result.hidden=true;
+ sessionStorage.removeItem("fh_pkce");sessionStorage.removeItem("fh_web_token");result.hidden=true;
  status.textContent="Abmeldung bei Keycloak wird gestartet …";
  const url=new URL(issuer+"/protocol/openid-connect/logout");
  url.searchParams.set("client_id","fieldhub-web-dev");
