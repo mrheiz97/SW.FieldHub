@@ -15,7 +15,6 @@
     toast.append(label,close);region.append(toast);
     // Keep messages until explicitly dismissed: no hidden timeouts.
   };
-  const originalFetch=window.fetch.bind(window);
   // No global interception of requests or tokens.
   window.fhBusy=function(button,action){
     if(button.disabled)return Promise.resolve();
