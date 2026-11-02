@@ -277,3 +277,20 @@ def test_web_admin_script_is_local_only(env):
         assert "no-store" in response.headers["cache-control"]
     finally:
         settings.local_dev_login = previous
+
+def test_web_responsive_assets_are_local_only(env):
+    client, actor, engine = env
+    from app.config import settings
+    previous = settings.local_dev_login
+    try:
+        settings.local_dev_login = False
+        assert client.get("/dev/fieldhub-responsive.css").status_code == 404
+        assert client.get("/dev/fieldhub-feedback.js").status_code == 404
+        settings.local_dev_login = True
+        for path in ("/dev/fieldhub-responsive.css", "/dev/fieldhub-feedback.js"):
+            assert client.get(path, headers={"host": "example.org"}).status_code == 403
+            response = client.get(path, headers={"host": "127.0.0.1:8000"})
+            assert response.status_code == 200
+            assert "no-store" in response.headers["cache-control"]
+    finally:
+        settings.local_dev_login = previous
