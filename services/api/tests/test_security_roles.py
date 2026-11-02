@@ -225,3 +225,13 @@ def test_ui_schema_is_permission_scoped(env):
     assert [card["target"] for card in data["dashboard"]["cards"]] == ["forms"]
     actor["id"] = OTHER
     assert client.get("/v1/workspaces/ravens/ui").status_code == 403
+
+def test_ui_schema_respects_module_toggle(env):
+    client, actor, engine = env
+    assert client.put("/v1/workspaces/ravens/modules/forms", json={"enabled": False}).status_code == 200
+    data = client.get("/v1/workspaces/ravens/ui").json()
+    assert "forms" not in [page["id"] for page in data["pages"]]
+    assert "forms" not in [card["target"] for card in data["dashboard"]["cards"]]
+    assert client.put("/v1/workspaces/ravens/modules/forms", json={"enabled": True}).status_code == 200
+    data = client.get("/v1/workspaces/ravens/ui").json()
+    assert "forms" in [page["id"] for page in data["pages"]]
