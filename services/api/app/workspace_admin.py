@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .database import get_db
 from .models import Membership, Workspace, ExternalIdentity
 from .config import settings
-from .security import current_subject, require_permission
+from .security import current_user_id, require_permission
 
 router = APIRouter(prefix="/v1/workspaces", tags=["Workspace administration"])
 ALLOWED = frozenset({
@@ -32,23 +32,23 @@ def workspace_or_404(db: Session, workspace_id: str):
         raise HTTPException(404, "Workspace not found")
     return workspace
 
-def admin(db: Session, workspace_id: str, subject: str):
-    require_permission(workspace_id, "workspace.manage", subject, db)
+def admin(db: Session, workspace_id: str, user_id: str):
+    require_permission(workspace_id, "workspace.manage", user_id, db)
     return workspace_or_404(db, workspace_id)
 
 def membership_out(item: Membership):
     return {"subject": item.subject, "permissions": item.permissions}
 
 @router.get("/{workspace_id}/admin")
-def get_workspace(workspace_id: str, subject: str = Depends(current_subject),
+def get_workspace(workspace_id: str, user_id: str = Depends(current_user_id),
                   db: Session = Depends(get_db)):
-    workspace = admin(db, workspace_id, subject)
+    workspace = admin(db, workspace_id, user_id)
     return {"id": workspace.id, "name": workspace.name}
 
 @router.patch("/{workspace_id}/admin")
 def update_workspace(workspace_id: str, body: WorkspaceUpdate,
-                     subject: str = Depends(current_subject), db: Session = Depends(get_db)):
-    workspace = admin(db, workspace_id, subject)
+                     user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    workspace = admin(db, workspace_id, user_id)
     workspace.name = body.name.strip()
     if not workspace.name:
         raise HTTPException(422, "Workspace name required")
@@ -56,21 +56,21 @@ def update_workspace(workspace_id: str, body: WorkspaceUpdate,
     return {"id": workspace.id, "name": workspace.name}
 
 @router.get("/{workspace_id}/members")
-def list_members(workspace_id: str, subject: str = Depends(current_subject),
+def list_members(workspace_id: str, user_id: str = Depends(current_user_id),
                  db: Session = Depends(get_db)):
-    admin(db, workspace_id, subject)
+    admin(db, workspace_id, user_id)
     members = db.scalars(select(Membership).where(Membership.workspace_id == workspace_id)
                          .order_by(Membership.subject)).all()
     return {"items": [membership_out(item) for item in members]}
 
 @router.put("/{workspace_id}/members/{member_subject}")
 def put_member(workspace_id: str, member_subject: str, body: MembershipWrite,
-               subject: str = Depends(current_subject), db: Session = Depends(get_db)):
-    admin(db, workspace_id, subject)
+               user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    admin(db, workspace_id, user_id)
     if not SUBJECT.fullmatch(member_subject):
         raise HTTPException(422, "Invalid subject")
     check_permissions(body.permissions)
-    if member_subject == subject:
+    if db.scalar(select(Membership).where(Membership.workspace_id == workspace_id, Membership.subject == member_subject, Membership.user_id == user_id)) is not None:
         raise HTTPException(403, "Self-modification is disabled")
     item = db.scalar(select(Membership).where(
         Membership.workspace_id == workspace_id, Membership.subject == member_subject))
@@ -90,9 +90,9 @@ def put_member(workspace_id: str, member_subject: str, body: MembershipWrite,
 
 @router.delete("/{workspace_id}/members/{member_subject}", status_code=204)
 def delete_member(workspace_id: str, member_subject: str,
-                  subject: str = Depends(current_subject), db: Session = Depends(get_db)):
-    admin(db, workspace_id, subject)
-    if member_subject == subject:
+                  user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    admin(db, workspace_id, user_id)
+    if db.scalar(select(Membership).where(Membership.workspace_id == workspace_id, Membership.subject == member_subject, Membership.user_id == user_id)) is not None:
         raise HTTPException(403, "Self-removal is disabled")
     item = db.scalar(select(Membership).where(
         Membership.workspace_id == workspace_id, Membership.subject == member_subject))
