@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app import security
-from app.models import WorkspaceInvitation
+from app.models import WorkspaceInvitation, Membership
 from test_security_roles import env, ADMIN, SECOND, THIRD
 
 def test_oidc_rejects_expired_token(monkeypatch):
@@ -128,3 +128,34 @@ def test_oidc_rejects_tampered_rs256_signature(signed_oidc):
     with pytest.raises(HTTPException) as error:
         security.validate_oidc_token(header + "." + payload + "." + changed + signature[1:])
     assert error.value.status_code == 401
+
+def test_invitation_invalid_after_inviter_loses_admin_right(env):
+    client, actor, engine = env
+    created = client.post("/v1/workspaces/ravens/invitations",
+                          json={"permissions": ["forms.read"], "expiresInHours": 1})
+    assert created.status_code == 201, created.text
+    with Session(engine) as db:
+        member = db.query(Membership).filter_by(workspace_id="ravens", user_id=ADMIN).one()
+        member.permissions = ["forms.read"]
+        replacement = db.query(Membership).filter_by(workspace_id="ravens", user_id=SECOND).one()
+        replacement.permissions = ["workspace.manage", "forms.read"]
+        db.commit()
+    actor["id"] = THIRD
+    response = client.post("/v1/invitations/claim", json={"token": created.json()["token"]})
+    assert response.status_code == 400, response.text
+    with Session(engine) as db:
+        assert db.query(Membership).filter_by(workspace_id="ravens", user_id=THIRD).one().permissions == []
+
+
+def test_invitation_invalid_after_inviter_loses_delegated_permission(env):
+    client, actor, engine = env
+    created = client.post("/v1/workspaces/ravens/invitations",
+                          json={"permissions": ["forms.read"], "expiresInHours": 1})
+    assert created.status_code == 201, created.text
+    with Session(engine) as db:
+        member = db.query(Membership).filter_by(workspace_id="ravens", user_id=ADMIN).one()
+        member.permissions = ["workspace.manage"]
+        db.commit()
+    actor["id"] = THIRD
+    response = client.post("/v1/invitations/claim", json={"token": created.json()["token"]})
+    assert response.status_code == 400, response.text
