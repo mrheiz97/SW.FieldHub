@@ -3,14 +3,18 @@ import os
 from uuid import uuid4
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
+from hashlib import sha256
+from datetime import datetime, timedelta, timezone
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from app.database import engine
-from app.models import Workspace, User, Membership
+from app.models import Workspace, User, Membership, ExternalIdentity, WorkspaceInvitation
 from app.security import lock_workspace, assert_administrator_remains
+from app.invitations import InvitationClaim, claim_invitation
+from app.config import settings
 
 pytestmark = pytest.mark.skipif(os.getenv("FIELDHUB_TEST_POSTGRES") != "1", reason="Set FIELDHUB_TEST_POSTGRES=1")
 
@@ -77,3 +81,67 @@ def test_postgres_concurrent_workspace_lock_is_exclusive(pg_workspace):
         start.set()
         results = [future.result(timeout=10) for future in futures]
     assert results == ["55P03", "55P03"], results
+
+def test_postgres_invitation_claim_is_single_use(pg_workspace):
+    db, workspace_id, admin_id = pg_workspace
+    token = "concurrent-" + uuid4().hex + uuid4().hex
+    invitation_id = str(uuid4())
+    claimants = []
+    for _ in range(2):
+        uid = str(uuid4())
+        db.add(User(id=uid, display_name="Temporary claimant"))
+        db.flush()
+        db.add(ExternalIdentity(
+            id=-(uuid4().int % (10**15) + 1),
+            user_id=uid,
+            issuer=settings.oidc_issuer,
+            subject="security-claim-" + uuid4().hex,
+        ))
+        claimants.append(uid)
+    db.add(WorkspaceInvitation(
+        id=invitation_id, workspace_id=workspace_id,
+        token_hash=sha256(token.encode()).hexdigest(),
+        permissions=["forms.read"], created_by=admin_id,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+    ))
+    db.commit()
+
+    start = Event()
+    def attempt(uid):
+        with Session(engine, expire_on_commit=False) as session:
+            start.wait(timeout=5)
+            try:
+                claim_invitation(InvitationClaim(token=token), user_id=uid, db=session)
+                return 200
+            except HTTPException as error:
+                session.rollback()
+                return error.status_code
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(attempt, uid) for uid in claimants]
+            start.set()
+            outcomes = [future.result(timeout=15) for future in futures]
+        assert sorted(outcomes) == [200, 400], outcomes
+        with Session(engine) as check:
+            rows = check.scalars(select(Membership).where(
+                Membership.workspace_id == workspace_id,
+                Membership.user_id.in_(claimants))).all()
+            assert len(rows) == 1
+    finally:
+        db.rollback()
+        with engine.begin() as cleanup:
+            cleanup.execute(
+                text("DELETE FROM memberships WHERE workspace_id = :wid AND user_id IN (:u1, :u2)"),
+                {"wid": workspace_id, "u1": claimants[0], "u2": claimants[1]},
+            )
+            cleanup.execute(text("DELETE FROM workspace_invitations WHERE id = :iid"),
+                            {"iid": invitation_id})
+            cleanup.execute(
+                text("DELETE FROM external_identities WHERE user_id IN (:u1, :u2)"),
+                {"u1": claimants[0], "u2": claimants[1]},
+            )
+            cleanup.execute(
+                text("DELETE FROM users WHERE id IN (:u1, :u2)"),
+                {"u1": claimants[0], "u2": claimants[1]},
+            )
