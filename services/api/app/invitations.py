@@ -79,9 +79,20 @@ def revoke_invitation(workspace_id: str, invitation_id: str,
 def claim_invitation(body: InvitationClaim, user_id: str = Depends(current_user_id),
                      db: Session = Depends(get_db)):
     digest = sha256(body.token.encode()).hexdigest()
+    # Read the workspace identifier first, then acquire locks in the same order
+    # as all permission-changing endpoints: workspace before invitation.
+    workspace_id = db.scalar(select(WorkspaceInvitation.workspace_id).where(
+        WorkspaceInvitation.token_hash == digest))
+    if workspace_id is None:
+        raise HTTPException(400, "Invitation invalid or expired")
+    lock_workspace(db, workspace_id)
     inv = db.scalar(select(WorkspaceInvitation).where(
         WorkspaceInvitation.token_hash == digest).with_for_update())
     if inv is None or inv.claimed_at is not None or inv.revoked_at is not None or inv.expires_at <= now():
+        raise HTTPException(400, "Invitation invalid or expired")
+    # Invitations cannot outlive the authority that originally issued them.
+    inviter_grants = effective_permissions(inv.workspace_id, inv.created_by, db)
+    if "workspace.manage" not in inviter_grants or not set(inv.permissions) <= inviter_grants:
         raise HTTPException(400, "Invitation invalid or expired")
     if db.scalar(select(Membership).where(Membership.workspace_id == inv.workspace_id,
                                          Membership.user_id == user_id)) is not None:
