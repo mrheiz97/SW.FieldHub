@@ -14,7 +14,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
-from app.models import Workspace, User, Membership, WorkspaceRole, WorkspaceRoleAssignment
+from app.models import Workspace, User, Membership, WorkspaceRole, WorkspaceRoleAssignment, Form
 from app.security import current_user_id, effective_permissions
 
 ADMIN = str(uuid4())
