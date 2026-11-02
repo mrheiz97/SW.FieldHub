@@ -6,12 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .database import get_db
 from .models import Workspace, Membership, Form, Submission
-from .security import current_subject, require_permission
+from .security import current_user_id, require_permission
 
 from .dev_login import router as dev_login_router
 from .workspace_admin import router as workspace_admin_router
 
-app = FastAPI(title="StumpfWorks FieldHub API", version="0.20.0")
+app = FastAPI(title="StumpfWorks FieldHub API", version="0.22.0")
 
 app.include_router(dev_login_router)
 app.include_router(workspace_admin_router)
@@ -30,17 +30,17 @@ def health():
     return {"status": "ok"}
 
 @app.get("/v1/bootstrap")
-def bootstrap(subject: str = Depends(current_subject), db: Session = Depends(get_db)):
-    memberships = db.scalars(select(Membership).where(Membership.subject == subject)).all()
+def bootstrap(user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    memberships = db.scalars(select(Membership).where(Membership.user_id == user_id)).all()
     ids = [m.workspace_id for m in memberships]
     names = {w.id: w.name for w in db.scalars(select(Workspace).where(Workspace.id.in_(ids))).all()}
-    return {"schemaVersion": 1, "user": {"id": subject, "displayName": subject},
+    return {"schemaVersion": 1, "user": {"id": user_id, "displayName": user_id},
             "workspaces": [{"id": m.workspace_id, "name": names.get(m.workspace_id, m.workspace_id),
                             "permissions": m.permissions, "navigation": []} for m in memberships]}
 
 @app.get("/v1/workspaces/{workspace_id}/forms")
-def list_forms(workspace_id: str, subject: str = Depends(current_subject), db: Session = Depends(get_db)):
-    require_permission(workspace_id, "forms.read", subject, db)
+def list_forms(workspace_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    require_permission(workspace_id, "forms.read", user_id, db)
     forms = db.scalars(select(Form).where(Form.workspace_id == workspace_id, Form.published.is_(True))
                        .order_by(Form.form_id, Form.version.desc())).all()
     latest = {}
@@ -49,8 +49,8 @@ def list_forms(workspace_id: str, subject: str = Depends(current_subject), db: S
     return {"items": list(latest.values())}
 
 @app.get("/v1/workspaces/{workspace_id}/forms/{form_id}")
-def get_form(workspace_id: str, form_id: str, subject: str = Depends(current_subject), db: Session = Depends(get_db)):
-    require_permission(workspace_id, "forms.read", subject, db)
+def get_form(workspace_id: str, form_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    require_permission(workspace_id, "forms.read", user_id, db)
     form = db.scalar(select(Form).where(Form.workspace_id == workspace_id, Form.form_id == form_id,
                                       Form.published.is_(True)).order_by(Form.version.desc()).limit(1))
     if form is None:
@@ -59,8 +59,8 @@ def get_form(workspace_id: str, form_id: str, subject: str = Depends(current_sub
 
 @app.get("/v1/workspaces/{workspace_id}/forms/{form_id}/submissions")
 def list_submissions(workspace_id: str, form_id: str, limit: int = 25,
-                     subject: str = Depends(current_subject), db: Session = Depends(get_db)):
-    require_permission(workspace_id, "forms.submissions.read", subject, db)
+                     user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    require_permission(workspace_id, "forms.submissions.read", user_id, db)
     if not 1 <= limit <= 100:
         raise HTTPException(422, "Invalid limit")
     rows = db.scalars(select(Submission).where(Submission.workspace_id == workspace_id,
@@ -70,8 +70,8 @@ def list_submissions(workspace_id: str, form_id: str, limit: int = 25,
 @app.post("/v1/workspaces/{workspace_id}/forms/{form_id}/submissions", status_code=201)
 def create_submission(workspace_id: str, form_id: str, body: SubmissionWrite,
                       idempotency_key: str = Header(min_length=8, max_length=128),
-                      subject: str = Depends(current_subject), db: Session = Depends(get_db)):
-    require_permission(workspace_id, "forms.submissions.write", subject, db)
+                      user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    require_permission(workspace_id, "forms.submissions.write", user_id, db)
     form = db.scalar(select(Form).where(Form.workspace_id == workspace_id, Form.form_id == form_id,
                        Form.version == body.formVersion, Form.published.is_(True)))
     if form is None:
@@ -82,11 +82,11 @@ def create_submission(workspace_id: str, form_id: str, body: SubmissionWrite,
 @app.patch("/v1/workspaces/{workspace_id}/forms/{form_id}/submissions/{submission_id}")
 def update_submission(workspace_id: str, form_id: str, submission_id: str,
                       body: SubmissionWrite, if_match: str = Header(),
-                      subject: str = Depends(current_subject), db: Session = Depends(get_db)):
-    require_permission(workspace_id, "forms.submissions.write", subject, db)
+                      user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    require_permission(workspace_id, "forms.submissions.write", user_id, db)
     raise HTTPException(501, "Submission updates are not enabled yet")
 
 @app.post("/v1/workspaces/{workspace_id}/sync")
-def sync_workspace(workspace_id: str, subject: str = Depends(current_subject), db: Session = Depends(get_db)):
-    require_permission(workspace_id, "sync.write", subject, db)
+def sync_workspace(workspace_id: str, user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
+    require_permission(workspace_id, "sync.write", user_id, db)
     raise HTTPException(501, "Sync is not enabled yet")
