@@ -182,3 +182,11 @@ def test_bootstrap_modules_respect_permissions(env):
     workspace = response.json()["workspaces"][0]
     assert [m["id"] for m in workspace["modules"]] == ["forms"]
     assert [n["id"] for n in workspace["navigation"]] == ["forms"]
+
+def test_module_allowlist_filters_navigation():
+    from app.module_registry import visible_modules
+    permissions = {"forms.read", "workspace.manage"}
+    modules = visible_modules(permissions, {"forms"})
+    assert [module["id"] for module in modules] == ["forms"]
+    assert visible_modules(permissions, set()) == []
+    assert {module["id"] for module in visible_modules(permissions)} == {"forms", "administration"}
