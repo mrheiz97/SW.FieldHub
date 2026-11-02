@@ -129,7 +129,7 @@ async def get_session(request:Request):
     sid,data=await session(request)
     if not data:raise HTTPException(401,"Login required")
     await valid_access(sid,data)
-    return {"authenticated":True,"csrf":data["csrf"]
+    return {"authenticated":True,"csrf":data["csrf"]}
 
 def require_origin(request):
     expected=str(request.base_url).rstrip("/")
