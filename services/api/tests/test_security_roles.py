@@ -246,3 +246,18 @@ def test_web_preview_disabled_by_default(env):
         assert response.status_code == 404
     finally:
         settings.local_dev_login = previous
+
+def test_web_preview_requires_local_host(env):
+    client, actor, engine = env
+    from app.config import settings
+    previous = settings.local_dev_login
+    try:
+        settings.local_dev_login = True
+        response = client.get("/dev/fieldhub", headers={"host": "example.org"})
+        assert response.status_code == 403
+        response = client.get("/dev/fieldhub", headers={"host": "127.0.0.1:8000"})
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert "no-store" in response.headers["cache-control"]
+    finally:
+        settings.local_dev_login = previous
