@@ -30,7 +30,7 @@ def pg_workspace():
             db.add(User(id=user_id, display_name="Temporary test user"))
             db.flush()
             db.add(Membership(workspace_id=workspace_id, user_id=user_id,
-                                  subject="test-" + uuid4().hex, permissions=["workspace.manage"]))
+                                  subject="test-" + uuid4().hex, permissions=["workspace.manage", "forms.read"]))
             db.commit()
             yield db, workspace_id, user_id
         finally:
