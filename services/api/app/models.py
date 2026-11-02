@@ -86,3 +86,11 @@ class WorkspaceRoleAssignment(Base):
     workspace_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     role_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("workspace_roles.id", ondelete="CASCADE"), primary_key=True)
     user_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+
+class WorkspaceModule(Base):
+    __tablename__ = "workspace_modules"
+    __table_args__ = (UniqueConstraint("workspace_id", "module_id"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    module_id: Mapped[str] = mapped_column(String(64))
+    enabled: Mapped[bool] = mapped_column(default=True)
