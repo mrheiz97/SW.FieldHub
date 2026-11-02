@@ -190,3 +190,15 @@ def test_module_allowlist_filters_navigation():
     assert [module["id"] for module in modules] == ["forms"]
     assert visible_modules(permissions, set()) == []
     assert {module["id"] for module in visible_modules(permissions)} == {"forms", "administration"}
+
+def test_workspace_module_toggle_updates_bootstrap(env):
+    client, actor, engine = env
+    disabled = client.put("/v1/workspaces/ravens/modules/forms", json={"enabled": False})
+    assert disabled.status_code == 200, disabled.text
+    workspace = client.get("/v1/bootstrap").json()["workspaces"][0]
+    assert [module["id"] for module in workspace["modules"]] == ["administration"]
+    assert "forms" not in [item["id"] for item in workspace["navigation"]]
+    enabled = client.put("/v1/workspaces/ravens/modules/forms", json={"enabled": True})
+    assert enabled.status_code == 200, enabled.text
+    workspace = client.get("/v1/bootstrap").json()["workspaces"][0]
+    assert "forms" in [module["id"] for module in workspace["modules"]]
