@@ -141,6 +141,8 @@ async def logout(request:Request):
     require_origin(request)
     sid,data=await session(request)
     if not data:raise HTTPException(401,"Login required")
+    if not secrets.compare_digest(request.headers.get("x-csrf-token",""),data["csrf"]):
+        raise HTTPException(403,"Invalid CSRF token")
     await store.delete("session:"+sid)
     result=Response(status_code=204)
     result.delete_cookie(cookie_name,path="/",secure=secure,httponly=True,samesite="lax")
