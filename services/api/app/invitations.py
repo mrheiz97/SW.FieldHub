@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from .config import settings
 from .database import get_db
 from .models import ExternalIdentity, Membership, WorkspaceInvitation
-from .security import current_user_id, require_permission
+from .security import current_user_id, require_permission, effective_permissions, lock_workspace
 from .workspace_users import ALLOWED
 
 router = APIRouter(prefix="/v1", tags=["Invitations"])
@@ -37,10 +37,10 @@ def create_invitation(workspace_id: str, body: InvitationCreate,
     require_permission(workspace_id, "workspace.manage", user_id, db)
     if len(body.permissions) != len(set(body.permissions)) or not set(body.permissions) <= ALLOWED:
         raise HTTPException(422, "Unknown or duplicate permission")
-    # An invitation cannot grant a permission the issuing administrator lacks.
-    admin = db.scalar(select(Membership).where(Membership.workspace_id == workspace_id,
-                                               Membership.user_id == user_id))
-    if not set(body.permissions) <= set(admin.permissions):
+    # Validate effective grants, including workspace roles.
+    lock_workspace(db, workspace_id)
+    require_permission(workspace_id, "workspace.manage", user_id, db)
+    if not set(body.permissions) <= effective_permissions(workspace_id, user_id, db):
         raise HTTPException(403, "Cannot invite with permissions you do not hold")
     token = token_urlsafe(32)
     inv = WorkspaceInvitation(id=str(uuid4()), workspace_id=workspace_id,
