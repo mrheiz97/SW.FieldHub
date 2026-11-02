@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from .database import get_db
 from .models import WorkspaceRole, WorkspaceRoleAssignment, Membership
-from .security import current_user_id, require_permission, effective_permissions
+from .security import current_user_id, require_permission, effective_permissions, lock_workspace, assert_administrator_remains
 from .workspace_users import ALLOWED
 
 router = APIRouter(prefix="/v1/workspaces/{workspace_id}", tags=["Workspace roles"])
@@ -66,6 +66,8 @@ def create_role(workspace_id: str, body: RoleBody, user_id: str = Depends(curren
 def update_role(workspace_id: str, role_id: str, body: RoleBody,
                 user_id: str = Depends(current_user_id), db: Session = Depends(get_db)):
     require_permission(workspace_id, "workspace.manage", user_id, db)
+    lock_workspace(db, workspace_id)
+    require_permission(workspace_id, "workspace.manage", user_id, db)
     validate_grant(body, workspace_id, user_id, db)
     role = db.scalar(select(WorkspaceRole).where(WorkspaceRole.id == uuid(role_id),
                      WorkspaceRole.workspace_id == workspace_id).with_for_update())
@@ -84,6 +86,7 @@ def update_role(workspace_id: str, role_id: str, body: RoleBody,
     role.name = name
     role.description = body.description.strip()
     role.permissions = body.permissions
+    assert_administrator_remains(db, workspace_id)
     try:
         db.commit()
     except IntegrityError:
@@ -94,6 +97,8 @@ def update_role(workspace_id: str, role_id: str, body: RoleBody,
 @router.delete("/roles/{role_id}", status_code=204)
 def delete_role(workspace_id: str, role_id: str, user_id: str = Depends(current_user_id),
                 db: Session = Depends(get_db)):
+    require_permission(workspace_id, "workspace.manage", user_id, db)
+    lock_workspace(db, workspace_id)
     require_permission(workspace_id, "workspace.manage", user_id, db)
     role = db.scalar(select(WorkspaceRole).where(WorkspaceRole.id == uuid(role_id),
                      WorkspaceRole.workspace_id == workspace_id).with_for_update())
@@ -130,6 +135,8 @@ def assign_roles(workspace_id: str, target_id: str, body: RoleAssignments,
     if db.scalar(select(Membership).where(Membership.workspace_id == workspace_id,
                                          Membership.user_id == target_id)) is None:
         raise HTTPException(404, "Member not found")
+    lock_workspace(db, workspace_id)
+    require_permission(workspace_id, "workspace.manage", user_id, db)
     ids = [uuid(x) for x in body.roleIds]
     if len(ids) != len(set(ids)):
         raise HTTPException(422, "Duplicate roles")
@@ -152,5 +159,6 @@ def assign_roles(workspace_id: str, target_id: str, body: RoleAssignments,
     for role_id in ids:
         db.add(WorkspaceRoleAssignment(workspace_id=workspace_id, role_id=role_id,
                                        user_id=target_id))
+    assert_administrator_remains(db, workspace_id)
     db.commit()
     return {"roleIds": ids}
