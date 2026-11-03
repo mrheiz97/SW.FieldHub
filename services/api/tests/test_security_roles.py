@@ -174,8 +174,8 @@ def test_bootstrap_modules_respect_permissions(env):
     response = client.get("/v1/bootstrap")
     assert response.status_code == 200, response.text
     workspace = response.json()["workspaces"][0]
-    assert {m["id"] for m in workspace["modules"]} == {"forms", "administration"}
-    assert {n["id"] for n in workspace["navigation"]} == {"forms", "members", "roles"}
+    assert {m["id"] for m in workspace["modules"]} == {"forms", "recruiting", "administration"}
+    assert {n["id"] for n in workspace["navigation"]} == {"forms", "recruiting", "members", "roles"}
     actor["id"] = SECOND
     response = client.get("/v1/bootstrap")
     assert response.status_code == 200, response.text
@@ -196,7 +196,7 @@ def test_workspace_module_toggle_updates_bootstrap(env):
     disabled = client.put("/v1/workspaces/ravens/modules/forms", json={"enabled": False})
     assert disabled.status_code == 200, disabled.text
     workspace = client.get("/v1/bootstrap").json()["workspaces"][0]
-    assert [module["id"] for module in workspace["modules"]] == ["administration"]
+    assert [module["id"] for module in workspace["modules"]] == ["recruiting", "administration"]
     assert "forms" not in [item["id"] for item in workspace["navigation"]]
     enabled = client.put("/v1/workspaces/ravens/modules/forms", json={"enabled": True})
     assert enabled.status_code == 200, enabled.text
