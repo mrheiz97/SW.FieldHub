@@ -32,7 +32,7 @@ def validate(body):
 @router.get("/contacts")
 def list_contacts(workspace_id: str, user_id: str = Depends(current_user_id),
                   db: Session = Depends(get_db)):
-    require_permission(workspace_id, "forms.read", user_id, db)
+    require_recruiting_permission(workspace_id, "recruiting.read", user_id, db)
     rows = db.scalars(select(RecruitingContact).where(
         RecruitingContact.workspace_id == workspace_id,
         RecruitingContact.owner_id == user_id).order_by(
