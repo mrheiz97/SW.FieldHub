@@ -3,3 +3,16 @@
 .login-link{display:inline-block;margin-top:16px;padding:12px 18px;border-radius:10px;background:#ad9aff;color:#191325;text-decoration:none;font-weight:700}.login-link:focus-visible{outline:2px solid white;outline-offset:3px}
 
 .entry{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0;border-bottom:1px solid var(--border)}.entry:last-child{border:0}.entry>div:first-child{min-width:0;overflow-wrap:anywhere}.entry p{margin:5px 0}.actions{display:flex;flex-wrap:wrap;gap:9px}.field{display:grid;gap:7px;margin:14px 0}.field input{font:inherit;color:inherit;background:#252b3a;border:1px solid #42485c;border-radius:10px;padding:12px;width:100%}.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(195px,1fr));gap:12px;margin:17px 0}.check{display:flex;gap:10px;align-items:center}.check input{accent-color:var(--accent)}.modal{width:min(560px,calc(100vw - 26px));max-height:90dvh;overflow:auto;background:#1b202e;color:#f4f2f9;border:1px solid #57506e;border-radius:18px;padding:26px}.modal::backdrop{background:#05070cba}.modal .actions{margin-top:24px;justify-content:flex-end}.modal .actions button:last-child{background:var(--accent);color:#171323;font-weight:700}@media(max-width:560px){.entry{align-items:stretch;flex-direction:column}.modal{padding:19px}.checks{grid-template-columns:1fr}}
+
+/* Recruiting v0.2 */
+.recruiting-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0}
+.recruiting-stat{background:#242938;border:1px solid #383d50;border-radius:14px;padding:16px;display:grid;gap:3px}
+.recruiting-stat span{font-size:12px;color:#b7bed0}.recruiting-stat strong{font-size:29px;line-height:1.25;color:#f6f3ff}
+.recruiting-panel>input,.recruiting-panel>select{margin:0 10px 18px 0;min-height:44px}
+.recruiting-panel>input{width:min(330px,100%);background:#252b3a;border:1px solid #42485c;border-radius:11px;color:#fff;padding:10px 14px}
+.recruiting-panel>button{background:#ad9aff;color:#171323;font-weight:700}
+.recruiting-panel .entry{padding:20px 4px;gap:18px}
+.recruiting-panel .entry strong{font-size:17px}.recruiting-panel .entry span{color:#c3badf}
+.modal .field input[type=email],.modal .field input[type=tel],.modal .field input[type=datetime-local]{color-scheme:dark}
+@media(max-width:850px){.recruiting-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.recruiting-panel>input,.recruiting-panel>select,.recruiting-panel>button{width:100%;margin:0 0 10px}.recruiting-stat{padding:12px}.recruiting-stat strong{font-size:24px}}
