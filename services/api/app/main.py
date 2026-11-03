@@ -19,6 +19,7 @@ from .users_api import router as users_router
 from .workspace_users import router as workspace_users_router
 from .invitations import router as invitations_router
 from .roles import router as roles_router
+from .recruiting import router as recruiting_router
 
 app = FastAPI(title="StumpfWorks FieldHub API", version="0.27.0")
 
@@ -28,6 +29,7 @@ app.include_router(users_router)
 app.include_router(workspace_users_router)
 app.include_router(invitations_router)
 app.include_router(roles_router)
+app.include_router(recruiting_router)
 app.include_router(workspace_modules_router)
 app.include_router(workspace_ui_router)
 app.include_router(web_preview_router)
