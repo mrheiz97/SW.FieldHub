@@ -35,7 +35,7 @@ MODULES = (
         id="recruiting",
         version="0.1.0",
         label="Recruiting",
-        navigation=(NavigationEntry("recruiting", "Recruiting", "/recruiting", "forms.read", "contact-round"),),
+        navigation=(NavigationEntry("recruiting", "Recruiting", "/recruiting", "recruiting.read", "contact-round"),),
     ),
     ModuleManifest(
         id="administration",
