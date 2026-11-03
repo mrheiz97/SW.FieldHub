@@ -58,7 +58,7 @@ def visible_modules(permissions: set[str], enabled_module_ids: set[str] | None =
         entries = [
             {"id": item.id, "label": item.label, "route": item.route, "icon": item.icon}
             for item in module.navigation
-            if item.permission in permissions
+            if item.permission in permissions or (module.id == "recruiting" and "workspace.manage" in permissions)
         ]
         if entries:
             result.append({
