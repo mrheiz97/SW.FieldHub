@@ -3,7 +3,7 @@
 async function show(){
  const area=byId("content");area.replaceChildren();byId("page-title").textContent="Recruiting";
  const panel=element("section","","panel"),heading=element("h2","Kontakte"),search=document.createElement("input"),add=element("button","Kontakt hinzufügen"),list=element("div");
- search.placeholder="Name suchen";panel.append(heading,search,add,list);area.append(panel);
+ search.placeholder="Kontakte suchen";panel.append(heading,search,add,list);area.append(panel);
  let rows=[];
  function draw(){list.replaceChildren();for(const item of rows.filter(x=>x.name.toLowerCase().includes(search.value.toLowerCase()))){const row=element("div","","entry");row.append(element("strong",item.name),element("span",item.status));if(item.followUpAt)row.append(element("span",new Date(item.followUpAt).toLocaleString("de-DE")));const edit=element("button","Bearbeiten");edit.onclick=()=>editContact(item);row.append(edit);list.append(row)}if(!list.childElementCount)list.append(element("p","Keine Kontakte vorhanden."))}
  async function reload(){const data=await request(root()+"/recruiting/contacts");rows=data.items||[];draw()}
