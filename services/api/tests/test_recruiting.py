@@ -21,8 +21,8 @@ def ctx():
         db.add_all([User(id=owner), User(id=stranger)])
         db.flush()
         db.add_all([
-            Membership(workspace_id="ravens", user_id=owner, subject="owner", permissions=["forms.read", "forms.submissions.write"]),
-            Membership(workspace_id="ravens", user_id=stranger, subject="stranger", permissions=["forms.read", "forms.submissions.write"]),
+            Membership(workspace_id="ravens", user_id=owner, subject="owner", permissions=["recruiting.read", "recruiting.write"]),
+            Membership(workspace_id="ravens", user_id=stranger, subject="stranger", permissions=["recruiting.read", "recruiting.write"]),
         ])
         db.commit()
     actor = {"id": owner}
