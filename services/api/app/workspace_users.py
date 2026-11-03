@@ -9,7 +9,7 @@ from .models import Membership, User
 from .security import current_user_id, require_permission, effective_permissions, lock_workspace, assert_administrator_remains
 
 router = APIRouter(prefix="/v1/workspaces", tags=["Workspace users"])
-ALLOWED = frozenset({"forms.read", "forms.submissions.read", "forms.submissions.write", "sync.write", "workspace.manage"})
+ALLOWED = frozenset({"forms.read", "forms.submissions.read", "forms.submissions.write", "sync.write", "workspace.manage", "recruiting.read", "recruiting.write"})
 
 class PermissionsUpdate(BaseModel):
     permissions: list[str] = Field(max_length=20)
