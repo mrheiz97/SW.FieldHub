@@ -96,8 +96,7 @@ def lock_workspace(db: Session, workspace_id: str) -> None:
     row = db.scalar(select(Workspace).where(Workspace.id == workspace_id).with_for_update())
     if row is None:
         raise HTTPException(404, "Workspace not found")
-
-def assert_administrator_remains(db: Session, workspace_id: str) -> None:
+    # A transaction may have read membership/role rows before waiting for this lock.\n    # Invalidate cached ORM objects so subsequent authorization checks observe\n    # the latest committed state under PostgreSQL READ COMMITTED.\n    db.expire_all()\n\ndef assert_administrator_remains(db: Session, workspace_id: str) -> None:
     """Call after mutations and flush, while holding the workspace lock."""
     db.flush()
     members = db.scalars(select(Membership.user_id).where(
