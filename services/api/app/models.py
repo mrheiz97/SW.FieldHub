@@ -94,3 +94,13 @@ class WorkspaceModule(Base):
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
     module_id: Mapped[str] = mapped_column(String(64))
     enabled: Mapped[bool] = mapped_column(default=True)
+
+class RecruitingContact(Base):
+    __tablename__ = "recruiting_contacts"
+    id: Mapped[str] = mapped_column(Uuid(as_uuid=False), primary_key=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), index=True)
+    owner_id: Mapped[str] = mapped_column(Uuid(as_uuid=False), ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(160))
+    status: Mapped[str] = mapped_column(String(32), default="new")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    follow_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
