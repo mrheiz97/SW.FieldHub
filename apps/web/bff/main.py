@@ -23,6 +23,7 @@ api_url=os.environ.get("BFF_API_URL","http://api:8000").rstrip("/")
 jwks_url=os.environ.get("BFF_OIDC_JWKS_URL",issuer+"/protocol/openid-connect/certs")
 jwks_client=PyJWKClient(jwks_url,cache_jwk_set=True,lifespan=300)
 MAX_SESSION_AGE=8*3600
+IDLE_SESSION_AGE=30*60
 secure=os.environ.get("BFF_SECURE_COOKIES","true")=="true"
 cookie_name="__Host-fh_session" if secure else "fh_dev_session"
 from urllib.parse import urlparse
@@ -38,11 +39,14 @@ def set_cookie(response,sid):
 async def session(request):
     sid=request.cookies.get(cookie_name)
     if not sid:return None,None
+    if len(sid)>128 or not sid.isascii() or not all(c.isalnum() or c in "-_" for c in sid):return None,None
     data=await store.hgetall("session:"+sid)
     if not data:return sid,None
-    if int(data.get("created","0"))+MAX_SESSION_AGE<int(time.time()):
+    now=int(time.time())
+    if int(data.get("created","0"))+MAX_SESSION_AGE<=now or int(data.get("last_seen","0"))+IDLE_SESSION_AGE<=now:
         await store.delete("session:"+sid)
         return sid,None
+    await store.hset("session:"+sid,"last_seen",now)
     return sid,data
 
 def verify_id_token(token,nonce):
@@ -87,7 +91,7 @@ async def callback(request:Request,code:str,state:str):
     sid=secrets.token_urlsafe(32)
     csrf=secrets.token_urlsafe(32)
     now=int(time.time())
-    await store.hset("session:"+sid,mapping={"access":access,"refresh":refresh,"expires":now+ttl,"created":now,"csrf":csrf})
+    await store.hset("session:"+sid,mapping={"access":access,"refresh":refresh,"expires":now+ttl,"created":now,"last_seen":now,"csrf":csrf})
     await store.expire("session:"+sid,MAX_SESSION_AGE)
     result=RedirectResponse("/",status_code=303)
     result.delete_cookie("fh_login_state",path="/auth",secure=secure,httponly=True,samesite="lax")
@@ -121,7 +125,7 @@ async def valid_access(sid,data):
                 raise HTTPException(401,"Session expired") from exc
             await store.hset("session:"+sid,mapping={"access":access,"refresh":new_refresh,"expires":int(time.time())+ttl})
             return access
-    except redis.exceptions.LockError as exc:
+    except (redis.exceptions.LockError,redis.exceptions.LockNotOwnedError) as exc:
         raise HTTPException(503,"Session temporarily busy") from exc
 
 @app.get("/auth/session")
