@@ -189,7 +189,7 @@ def test_module_allowlist_filters_navigation():
     modules = visible_modules(permissions, {"forms"})
     assert [module["id"] for module in modules] == ["forms"]
     assert visible_modules(permissions, set()) == []
-    assert {module["id"] for module in visible_modules(permissions)} == {"forms", "administration"}
+    assert {module["id"] for module in visible_modules(permissions)} == {"forms", "recruiting", "administration"}
 
 def test_workspace_module_toggle_updates_bootstrap(env):
     client, actor, engine = env
