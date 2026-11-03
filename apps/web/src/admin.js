@@ -1,6 +1,6 @@
 "use strict";
 (function(){
-const labels={"forms.read":"Formulare ansehen","forms.submissions.read":"Einreichungen lesen","forms.submissions.write":"Einreichungen bearbeiten","sync.write":"Synchronisieren","workspace.manage":"Workspace verwalten"};
+const labels={"forms.read":"Formulare ansehen","forms.submissions.read":"Einreichungen lesen","forms.submissions.write":"Einreichungen bearbeiten","sync.write":"Synchronisieren","workspace.manage":"Workspace verwalten","recruiting.read":"Recruiting ansehen","recruiting.write":"Recruiting bearbeiten"};
 const $=byId;
 const button=(title,fn)=>{const b=element("button",title);b.type="button";b.onclick=fn;return b};
 const panel=(title)=>{const p=element("section","","panel");p.append(element("h2",title));return p};
