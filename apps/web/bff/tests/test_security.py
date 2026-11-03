@@ -2,6 +2,8 @@
 import os
 import sys
 import unittest
+import time
+import asyncio
 from unittest.mock import patch, AsyncMock
 from types import SimpleNamespace
 from pathlib import Path
@@ -46,6 +48,33 @@ class SecurityTests(unittest.TestCase):
         with patch.object(main.jwks_client,"get_signing_key_from_jwt",side_effect=main.jwt.PyJWTError("invalid")):
             with self.assertRaises(main.jwt.PyJWTError):
                 main.verify_id_token("bad","nonce")
+
+    def test_invalid_session_id_is_rejected_before_redis(self):
+        with patch.object(main.store,"hgetall",new_callable=AsyncMock) as read:
+            request=SimpleNamespace(cookies={main.cookie_name:"not valid/../id"})
+            sid,data=asyncio.run(main.session(request))
+        self.assertIsNone(data)
+        self.assertIsNone(sid)
+        read.assert_not_awaited()
+
+    def test_idle_session_expires(self):
+        now=int(time.time())
+        data={"created":str(now-100),"last_seen":str(now-main.IDLE_SESSION_AGE-1),"csrf":"test"}
+        with patch.object(main.store,"hgetall",new_callable=AsyncMock,return_value=data):
+            with patch.object(main.store,"delete",new_callable=AsyncMock) as delete:
+                sid,result=asyncio.run(main.session(SimpleNamespace(cookies={main.cookie_name:"valid_session"})))
+        self.assertIsNone(result)
+        self.assertEqual(sid,"valid_session")
+        delete.assert_awaited_once()
+
+    def test_active_session_updates_last_seen(self):
+        now=int(time.time())
+        data={"created":str(now-100),"last_seen":str(now-10),"csrf":"test"}
+        with patch.object(main.store,"hgetall",new_callable=AsyncMock,return_value=data):
+            with patch.object(main.store,"hset",new_callable=AsyncMock) as update:
+                sid,result=asyncio.run(main.session(SimpleNamespace(cookies={main.cookie_name:"valid_session"})))
+        self.assertEqual(result,data)
+        update.assert_awaited_once()
 
     def test_origin_mismatch_rejected(self):
         from starlette.requests import Request
