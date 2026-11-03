@@ -139,6 +139,12 @@ def assign_roles(workspace_id: str, target_id: str, body: RoleAssignments,
         raise HTTPException(404, "Member not found")
     lock_workspace(db, workspace_id)
     require_permission(workspace_id, "workspace.manage", user_id, db)
+    # The target could have been removed while this request waited for the lock.
+    target_member = db.scalar(select(Membership).where(
+        Membership.workspace_id == workspace_id,
+        Membership.user_id == target_id).with_for_update())
+    if target_member is None:
+        raise HTTPException(404, "Member not found")
     ids = [uuid(x) for x in body.roleIds]
     if len(ids) != len(set(ids)):
         raise HTTPException(422, "Duplicate roles")
@@ -149,9 +155,6 @@ def assign_roles(workspace_id: str, target_id: str, body: RoleAssignments,
     allowed = effective_permissions(workspace_id, user_id, db)
     if any(not set(role.permissions) <= allowed for role in roles):
         raise HTTPException(403, "Cannot assign roles with permissions you do not hold")
-    # Serialize role updates per target membership.
-    db.scalar(select(Membership).where(Membership.workspace_id == workspace_id,
-              Membership.user_id == target_id).with_for_update())
     old = db.scalars(select(WorkspaceRoleAssignment).where(
         WorkspaceRoleAssignment.workspace_id == workspace_id,
         WorkspaceRoleAssignment.user_id == target_id)).all()
