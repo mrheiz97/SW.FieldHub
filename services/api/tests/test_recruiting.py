@@ -57,3 +57,20 @@ def test_reject_invalid_status_and_naive_followup(ctx):
     client, _, _, _ = ctx
     for body in ({"name":"Alex","status":"admin"}, {"name":"Alex","followUpAt":"2026-11-04T12:00:00"}):
         assert client.post("/v1/workspaces/ravens/recruiting/contacts", json=body).status_code == 422
+
+def test_structured_contact_fields(ctx):
+    client, _, _, _ = ctx
+    response = client.post("/v1/workspaces/ravens/recruiting/contacts", json={
+        "firstName": "Alex", "lastName": "Muster",
+        "phone": "+49 123", "email": "alex@example.org",
+        "status": "interested"
+    })
+    assert response.status_code == 201, response.text
+    contact = response.json()
+    assert contact["name"] == "Alex Muster"
+    assert contact["firstName"] == "Alex"
+    assert contact["lastName"] == "Muster"
+    assert contact["phone"] == "+49 123"
+    assert contact["email"] == "alex@example.org"
+    assert contact["status"] == "interested"
+    assert client.get("/v1/workspaces/ravens/recruiting/contacts").json()["items"][0]["id"] == contact["id"]
